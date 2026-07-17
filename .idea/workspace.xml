@@ -5,12 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="398134e6-cc9d-4f00-b33c-216de9125c06" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/encodings.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/org/example/Main.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/org/example/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/example/Main.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -22,23 +18,23 @@
   </component>
   <component name="NextEditCompletionFeaturesState">
     <decayedCancelled>
-      <entry key="MS100" value="1.3374092599984209" />
-      <entry key="MS500" value="2.9950455492128123" />
-      <entry key="S2" value="4.842929002168875" />
-      <entry key="S5" value="5.488142771542617" />
-      <entry key="S10" value="5.7350321373843185" />
-      <entry key="S30" value="5.912653951628924" />
-      <entry key="S60" value="6.101036228813738" />
-      <entry key="M2" value="6.989628337242861" />
-      <entry key="M5" value="9.220666940332917" />
-      <entry key="M10" value="10.750228866343818" />
-      <entry key="M15" value="11.405986733027408" />
-      <entry key="M30" value="12.151779619921259" />
-      <entry key="H1" value="12.562247807566878" />
-      <entry key="H2" value="12.777602572802207" />
-      <entry key="H4" value="12.887906705840953" />
-      <entry key="D1" value="12.981192308921443" />
-      <entry key="W1" value="12.997310097980069" />
+      <entry key="MS100" value="1.6710344101925476" />
+      <entry key="MS500" value="4.511777624368931" />
+      <entry key="S2" value="8.804508863977553" />
+      <entry key="S5" value="16.076465513444155" />
+      <entry key="S10" value="23.20702064812711" />
+      <entry key="S30" value="33.44950427285672" />
+      <entry key="S60" value="38.154192991833476" />
+      <entry key="M2" value="44.83996000605812" />
+      <entry key="M5" value="67.08054357289305" />
+      <entry key="M10" value="88.12358344999278" />
+      <entry key="M15" value="98.50018403481931" />
+      <entry key="M30" value="111.26187114386882" />
+      <entry key="H1" value="118.71621791883695" />
+      <entry key="H2" value="122.74852505265775" />
+      <entry key="H4" value="124.84608923831006" />
+      <entry key="D1" value="126.63703402320365" />
+      <entry key="W1" value="126.94804932884693" />
     </decayedCancelled>
     <decayedSelected>
       <entry key="MS100" value="0.0" />
@@ -60,29 +56,29 @@
       <entry key="W1" value="0.0" />
     </decayedSelected>
     <decayedShown>
-      <entry key="MS100" value="1.2180600906854242" />
-      <entry key="MS500" value="2.8522103805855608" />
-      <entry key="S2" value="4.784820440687567" />
-      <entry key="S5" value="5.462330203365757" />
-      <entry key="S10" value="5.721658304455542" />
-      <entry key="S30" value="5.90808328517116" />
-      <entry key="S60" value="6.098619407664158" />
-      <entry key="M2" value="6.988053462435281" />
-      <entry key="M5" value="9.219659402291127" />
-      <entry key="M10" value="10.749594554647148" />
-      <entry key="M15" value="11.40552644286149" />
-      <entry key="M30" value="12.151528168186234" />
-      <entry key="H1" value="12.562116212241866" />
-      <entry key="H2" value="12.777535234617403" />
-      <entry key="H4" value="12.887872642120763" />
-      <entry key="D1" value="12.981186576002331" />
-      <entry key="W1" value="12.997309277618346" />
+      <entry key="MS100" value="1.5432806874748268" />
+      <entry key="MS500" value="4.44218132596822" />
+      <entry key="S2" value="8.77187591517651" />
+      <entry key="S5" value="16.055252551586477" />
+      <entry key="S10" value="23.1917581983336" />
+      <entry key="S30" value="33.44096192609282" />
+      <entry key="S60" value="38.148686930038686" />
+      <entry key="M2" value="44.83490422114567" />
+      <entry key="M5" value="67.07455904058794" />
+      <entry key="M10" value="88.11869459157205" />
+      <entry key="M15" value="98.49630363040936" />
+      <entry key="M30" value="111.25955009572128" />
+      <entry key="H1" value="118.71494643486888" />
+      <entry key="H2" value="122.74785933863073" />
+      <entry key="H4" value="124.84574859092697" />
+      <entry key="D1" value="126.636976140502" />
+      <entry key="W1" value="126.94804103240429" />
     </decayedShown>
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 8,
-  "fromUser": false
-}]]></component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 8,
+  &quot;fromUser&quot;: false
+}</component>
   <component name="ProjectId" id="3GboHEB0xBJwrWh9jT4nG7dHONu" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
@@ -98,15 +94,18 @@
     "RunOnceActivity.git.unshallow": "true",
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
     "codeWithMe.voiceChat.enabledByDefault": "false",
-    "git-widget-placeholder": "master",
+    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
+    "git-widget-placeholder": "practice-branch",
     "ignore.virus.scanning.warn.message": "true",
+    "junie.onboarding.icon.badge.shown": "true",
     "kotlin-language-version-configured": "true",
     "last_opened_file_path": "C:/Users/aksac/IdeaProjects/Tetris-2006ICT",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
     "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm"
+    "nodejs_package_manager_path": "npm",
+    "to.speed.mode.migration.done": "true"
   }
 }]]></component>
   <component name="SharedIndexes">
