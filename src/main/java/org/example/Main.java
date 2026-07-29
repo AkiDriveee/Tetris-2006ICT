@@ -3,7 +3,6 @@ package org.example;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Scene;
-import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.StackPane;
@@ -52,11 +51,8 @@ public class Main extends Application {
     }
 
     private void showMainStage(Stage primaryStage) {
-        Label mainLabel = new Label("Welcome to the Main Application!");
-        Scene mainScene = new Scene(new StackPane(mainLabel), 600, 400);
-        primaryStage.setTitle("Main App");
-        primaryStage.setScene(mainScene);
-        primaryStage.show();
+        //call main menu here
+        MainMenu.show(primaryStage);
     }
 
     // The very first thing that runs when you click Run.
@@ -66,3 +62,5 @@ public class Main extends Application {
     }
 
 }
+
+
