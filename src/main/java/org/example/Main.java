@@ -1,66 +1,45 @@
 package org.example;
 
+import javafx.animation.PauseTransition;
 import javafx.application.Application;
-import javafx.application.Platform;
 import javafx.scene.Scene;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
-import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
-import javafx.stage.StageStyle;
-import javafx.concurrent.Task;
-
+import javafx.util.Duration;
+import org.example.MainMenu;
 
 public class Main extends Application {
 
     @Override
     public void start(Stage primaryStage) {
 
-        Stage splashStage = new Stage(StageStyle.UNDECORATED);
-        ImageView splashImage = new ImageView(new Image(getClass().getResource("/splash-image.png").toExternalForm()));
+        // Display the final PG-39 splash screen
+        SplashScreen splashScreen = new SplashScreen();
 
-        splashImage.setFitWidth(300);
-        splashImage.setPreserveRatio(true);
-        splashImage.setSmooth(true);
+        Scene splashScene = new Scene(
+                splashScreen,
+                1000,
+                700
+        );
 
-        StackPane splashLayout = new StackPane(splashImage);
+        primaryStage.setTitle("Tetris - Group 39");
+        primaryStage.setScene(splashScene);
+        primaryStage.setMinWidth(800);
+        primaryStage.setMinHeight(560);
+        primaryStage.centerOnScreen();
+        primaryStage.show();
 
-        Scene splashScene = new Scene(splashLayout, 320, 320);
+        // After four seconds, open the team's existing main menu
+        PauseTransition delay =
+                new PauseTransition(Duration.seconds(4));
 
-        splashStage.setScene(splashScene);
-        splashStage.show();
+        delay.setOnFinished(event ->
+                MainMenu.show(primaryStage)
+        );
 
-        Task<Void> loadTask = new Task<>() {
-
-            @Override
-            protected Void call() throws Exception {
-                Thread.sleep(5000);
-                return null;
-            }
-
-            @Override
-            protected void succeeded() {
-                Platform.runLater(() -> {
-                    splashStage.close();        // close the splash window
-                    showMainStage(primaryStage); // open the main window
-                });
-            }
-        };
-
-        new Thread(loadTask).start();
+        delay.play();
     }
 
-    private void showMainStage(Stage primaryStage) {
-        //call main menu here
-        MainMenu.show(primaryStage);
-    }
-
-    // The very first thing that runs when you click Run.
-    // launch(args) hands off to JavaFX, which then calls start() for you above
     public static void main(String[] args) {
         launch(args);
     }
-
 }
-
-
