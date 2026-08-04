@@ -90,11 +90,11 @@ public class MainMenu {
     }
 
     private static void showConfigurations(Stage stage) {
-        System.out.println("TODO: show settings/configuration screen");
+        ConfigurationScreen.show(stage);
     }
 
     private static void exitGame(Stage stage) {
-        System.out.println("TODO: show exit confirmation dialog");
+        ExitConfirmation.show(stage);
     }
 
 }
