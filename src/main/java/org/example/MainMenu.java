@@ -36,7 +36,7 @@ public class MainMenu {
         ExitBtn.setOnAction(e -> handleMenuSelection(MenuOption.EXIT, stage));
 
         //main menu title
-        Label titleLabel = new Label("TETRIS P39 - MAIN MENU");
+        Label titleLabel = new Label("TETRIS PG-39 - MAIN MENU");
         titleLabel.setStyle("-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: #f3f0f0; -fx-background-color: #000000;");
         VBox.setMargin(titleLabel, new Insets(0, 0, 20, 0));
 
