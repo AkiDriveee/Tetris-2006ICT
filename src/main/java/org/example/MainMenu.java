@@ -86,7 +86,7 @@ public class MainMenu {
     }
 
     private static void showHighScores(Stage stage) {
-        System.out.println("TODO: show high score screen");
+        HighScore.show(stage);
     }
 
     private static void showConfigurations(Stage stage) {
