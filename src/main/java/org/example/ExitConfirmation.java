@@ -25,8 +25,8 @@ public final class ExitConfirmation {
         ButtonType noButton = new ButtonType("No");
 
         confirmation.getButtonTypes().setAll(
-                yesButton,
-                noButton
+                noButton,
+                yesButton
         );
 
         confirmation.initOwner(stage);
