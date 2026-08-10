@@ -172,7 +172,7 @@ public final class ConfigurationScreen {
         HBox buttonBox = (HBox) root.getChildren().get(2);
         buttonBox.setAlignment(Pos.CENTER);
 
-        Scene scene = new Scene(root, 900, 700);
+        Scene scene = new Scene(root, 1000, 700);
 
         stage.setTitle("Tetris - Configuration");
         stage.setScene(scene);
