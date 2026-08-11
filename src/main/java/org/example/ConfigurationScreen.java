@@ -144,7 +144,7 @@ public final class ConfigurationScreen {
                 -fx-font-size: 16px;
                 -fx-font-weight: bold;
                 -fx-text-fill: white;
-                -fx-background-color: #8338ec;
+                -fx-background-color: #c02ec2;
                 -fx-background-radius: 10;
                 -fx-padding: 10 20;
                 """);

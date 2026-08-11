@@ -23,8 +23,8 @@ public class Main extends Application {
 
         primaryStage.setTitle("Tetris - Group 39");
         primaryStage.setScene(splashScene);
-        primaryStage.setMinWidth(800);
-        primaryStage.setMinHeight(560);
+        primaryStage.setMinWidth(1000);
+        primaryStage.setMinHeight(700);
         primaryStage.centerOnScreen();
         primaryStage.show();
 
