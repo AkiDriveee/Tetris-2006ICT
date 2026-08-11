@@ -62,7 +62,7 @@ public class MainMenu {
         ConfigurationBtn.setStyle("-fx-font-size: 16px; -fx-text-fill: #ffffff; -fx-font-weight: 900; -fx-background-color: #c02ec2;");
         ExitBtn.setStyle("-fx-font-size: 16px; -fx-text-fill: #ffffff; -fx-font-weight: 900; -fx-background-color: #e63946;");
 
-        Scene scene = new Scene(root, 1000, 700); //fixed window size
+        Scene scene = new Scene(root, 800, 600); //fixed window size
 
         stage.setTitle("Tetris - Main Menu"); // sets window title text
         stage.setScene(scene);
@@ -82,7 +82,7 @@ public class MainMenu {
 
     //scenes for each button
     private static void startGame(Stage stage) {
-        System.out.println("TODO: launch game screen");
+        PlayScreen.show(stage);
     }
 
     private static void showHighScores(Stage stage) {
