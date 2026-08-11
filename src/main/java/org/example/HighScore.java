@@ -54,10 +54,8 @@ public class HighScore {
         Button backButton = new Button("Back");
 
         backButton.setOnAction(e -> {
-            MainMenu.show(stage);
+            stage.close();
         });
-
-
 
         VBox bottom = new VBox(backButton);
         bottom.setAlignment(Pos.CENTER);
