@@ -132,9 +132,5 @@ public class HighScore {
 
         stage.setTitle("Tetris - High Scores");
         stage.setScene(scene);
-        stage.setWidth(1000);
-        stage.setHeight(700);
-        stage.centerOnScreen();
-        stage.show();
     }
 }
