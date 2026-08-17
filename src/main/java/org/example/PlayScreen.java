@@ -287,12 +287,7 @@ public class PlayScreen {
 
         backButton.setOnAction(e -> {
 
-            /*
-             * If GAME OVER has already occurred,
-             * there is no active game to confirm stopping.
-             *
-             * Therefore Back goes directly to Main Menu.
-             */
+            // If the game is already over, go straight back.
             if (gameOver) {
 
                 if (timer != null) {
@@ -300,35 +295,29 @@ public class PlayScreen {
                 }
 
                 MainMenu.show(stage);
-
                 return;
             }
 
             /*
-             * If the game is still active, pressing Back
-             * automatically pauses it.
-             *
-             * The pause message remains visible behind
-             * the confirmation dialog.
+             * Remember whether the user had already paused
+             * the game manually with P BEFORE clicking Back.
+             */
+            boolean wasAlreadyPaused = paused;
+
+            /*
+             * Temporarily pause the game while the
+             * Stop Game confirmation is open.
              */
             paused = true;
-
             pauseMessage.setVisible(true);
 
             Alert confirmation =
-                    new Alert(
-                            Alert.AlertType.CONFIRMATION
-                    );
+                    new Alert(Alert.AlertType.CONFIRMATION);
 
             confirmation.initOwner(stage);
 
-            confirmation.setTitle(
-                    "Stop Game"
-            );
-
-            confirmation.setHeaderText(
-                    "Stop Game"
-            );
+            confirmation.setTitle("Stop Game");
+            confirmation.setHeaderText("Stop Game");
 
             confirmation.setContentText(
                     "Are you sure you want to stop the current game?"
@@ -350,37 +339,50 @@ public class PlayScreen {
             Optional<ButtonType> result =
                     confirmation.showAndWait();
 
+            // -------------------------------------------------
+            // YES = STOP GAME
+            // -------------------------------------------------
+
             if (result.isPresent()
                     && result.get() == yesButton) {
-
-                // YES:
-                // Stop the game and return to Main Menu.
 
                 if (timer != null) {
                     timer.stop();
                 }
 
                 paused = false;
-
                 pauseMessage.setVisible(false);
 
                 MainMenu.show(stage);
 
             } else {
 
-                /*
-                 * NO:
-                 *
-                 * Close the confirmation but DO NOT
-                 * automatically resume the game.
-                 *
-                 * The game stays paused and the message
-                 * remains until P is pressed.
-                 */
+                // -------------------------------------------------
+                // NO = RETURN TO GAME
+                // -------------------------------------------------
 
-                paused = true;
+                if (wasAlreadyPaused) {
 
-                pauseMessage.setVisible(true);
+                    /*
+                     * The player had pressed P before clicking Back.
+                     *
+                     * Therefore the game must remain paused.
+                     * The pause message stays visible.
+                     */
+                    paused = true;
+                    pauseMessage.setVisible(true);
+
+                } else {
+
+                    /*
+                     * The game was running before Back was clicked.
+                     *
+                     * Back only paused it temporarily for the alert.
+                     * Therefore selecting No resumes automatically.
+                     */
+                    paused = false;
+                    pauseMessage.setVisible(false);
+                }
             }
         });
 
