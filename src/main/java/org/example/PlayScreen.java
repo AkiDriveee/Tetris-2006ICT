@@ -32,13 +32,6 @@ public class PlayScreen {
     public static void show(Stage stage) {
         BorderPane root = new BorderPane();
 
-        // Title text
-        Label title = new Label("Play");
-        title.setStyle("-fx-font-size: 24px; -fx-font-weight: bold;");
-        VBox top = new VBox(title);
-        top.setAlignment(Pos.CENTER);
-        root.setTop(top);
-
         // Build the empty board and reset old data
         GridPane grid = new GridPane();
         grid.setStyle("-fx-background-color: black");
@@ -95,6 +88,13 @@ public class PlayScreen {
                     drawPiece(currentPiece);
                     pieceLayer.getChildren().clear();
 
+                    // ADDED: detect and erase completed rows before the next piece spawns
+                    int rowsRemoved = eraseFullRows();
+
+                    if (rowsRemoved > 0) {
+                        System.out.println("Rows removed: " + rowsRemoved);
+                    }
+
                     Tetromino nextPiece = spawnRandomPiece();
 
                     if (canSpawn(nextPiece)) {
@@ -149,6 +149,7 @@ public class PlayScreen {
                 }
                 default -> {}
             }
+
             drawFallingPiece(currentPiece, pieceLayer);
         });
 
@@ -169,6 +170,76 @@ public class PlayScreen {
                             "-fx-background-color: " + colorHex + "; -fx-border-color: #101010; -fx-border-width: 1;"
                     );
                     board[boardRow][boardCol] = piece.getColor();
+                }
+            }
+        }
+    }
+
+    // ADDED: detects and removes all completed rows.
+    // Returns how many rows were removed.
+    private static int eraseFullRows() {
+        int rowsRemoved = 0;
+
+        for (int row = ROWS - 1; row >= 0; row--) {
+            if (isFullRow(row)) {
+                removeRow(row);
+                rowsRemoved++;
+
+                // A row above has moved into this same position,
+                // so check this row index again.
+                row++;
+            }
+        }
+
+        if (rowsRemoved > 0) {
+            refreshBoardView();
+        }
+
+        return rowsRemoved;
+    }
+
+    // ADDED: a row is full only when every board cell contains a block.
+    private static boolean isFullRow(int row) {
+        for (Color cell : board[row]) {
+            if (cell == null) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    // ADDED: removes one full row and moves all rows above it down by one.
+    // The existing Color values move with the blocks, preserving their colours.
+    private static void removeRow(int row) {
+        for (int r = row; r > 0; r--) {
+            for (int col = 0; col < COLS; col++) {
+                board[r][col] = board[r - 1][col];
+            }
+        }
+
+        // Clear the new top row.
+        for (int col = 0; col < COLS; col++) {
+            board[0][col] = null;
+        }
+    }
+
+    // ADDED: updates the JavaFX grid after rows have been shifted.
+    private static void refreshBoardView() {
+        for (int row = 0; row < ROWS; row++) {
+            for (int col = 0; col < COLS; col++) {
+                Color cellColor = board[row][col];
+
+                if (cellColor == null) {
+                    cellViews[row][col].setStyle(
+                            "-fx-background-color: #101010; -fx-border-color: #101010; -fx-border-width: 1;"
+                    );
+                } else {
+                    String colorHex = cellColor.toString().replace("0x", "#");
+
+                    cellViews[row][col].setStyle(
+                            "-fx-background-color: " + colorHex + "; -fx-border-color: #101010; -fx-border-width: 1;"
+                    );
                 }
             }
         }
@@ -225,6 +296,7 @@ public class PlayScreen {
                 }
             }
         }
+
         return true;
     }
 
@@ -241,6 +313,7 @@ public class PlayScreen {
                 }
             }
         }
+
         return true;
     }
 
@@ -257,6 +330,7 @@ public class PlayScreen {
                 }
             }
         }
+
         return true;
     }
 
@@ -276,6 +350,7 @@ public class PlayScreen {
                 }
             }
         }
+
         return true;
     }
 
@@ -291,6 +366,7 @@ public class PlayScreen {
                 }
             }
         }
+
         return true;
     }
 }
