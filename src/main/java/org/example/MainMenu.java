@@ -82,7 +82,7 @@ public class MainMenu {
 
     //scenes for each button
     private static void startGame(Stage stage) {
-        System.out.println("TODO: launch game screen");
+        PlayScreen.show(stage);
     }
 
     private static void showHighScores(Stage stage) {
