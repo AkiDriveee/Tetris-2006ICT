@@ -30,61 +30,61 @@
   </component>
   <component name="NextEditCompletionFeaturesState">
     <decayedCancelled>
-      <entry key="MS100" value="1.0001844202526673" />
-      <entry key="MS500" value="1.3846402075010675" />
-      <entry key="S2" value="5.312081115021736" />
-      <entry key="S5" value="13.07382428893321" />
-      <entry key="S10" value="23.49484441308337" />
-      <entry key="S30" value="45.1288729793127" />
-      <entry key="S60" value="57.66144523178532" />
-      <entry key="M2" value="68.40316995682514" />
-      <entry key="M5" value="86.57701209757445" />
-      <entry key="M10" value="116.1124997486924" />
-      <entry key="M15" value="143.45798140861214" />
-      <entry key="M30" value="215.579110365463" />
-      <entry key="H1" value="322.2772721496883" />
-      <entry key="H2" value="438.45632284059167" />
-      <entry key="H4" value="531.4896951817872" />
-      <entry key="D1" value="638.4016464180669" />
-      <entry key="W1" value="660.2445296378584" />
+      <entry key="MS100" value="1.0139277905356219" />
+      <entry key="MS500" value="1.8786874423205893" />
+      <entry key="S2" value="7.10833553887493" />
+      <entry key="S5" value="14.00008781169631" />
+      <entry key="S10" value="18.78651363444742" />
+      <entry key="S30" value="29.757213815903633" />
+      <entry key="S60" value="49.812015113947965" />
+      <entry key="M2" value="79.68952132907508" />
+      <entry key="M5" value="130.93049734673076" />
+      <entry key="M10" value="180.65513874186684" />
+      <entry key="M15" value="217.2060117482091" />
+      <entry key="M30" value="301.4250177233717" />
+      <entry key="H1" value="417.98010866572065" />
+      <entry key="H2" value="543.5338126258713" />
+      <entry key="H4" value="644.4116400556817" />
+      <entry key="D1" value="760.9819198987788" />
+      <entry key="W1" value="784.8869593397753" />
     </decayedCancelled>
     <decayedSelected>
       <entry key="MS100" value="0.0" />
-      <entry key="MS500" value="1.2213870789801446E-102" />
-      <entry key="S2" value="4.1597556802105934E-26" />
-      <entry key="S5" value="1.0237417096245731E-10" />
-      <entry key="S10" value="1.5074770651803267E-5" />
-      <entry key="S30" value="0.04857844115676413" />
-      <entry key="S60" value="0.40665403034118" />
-      <entry key="M2" value="1.569948298908969" />
-      <entry key="M5" value="5.892296281909232" />
-      <entry key="M10" value="11.589724009250789" />
-      <entry key="M15" value="16.748303502726994" />
-      <entry key="M30" value="31.530651140541867" />
-      <entry key="H1" value="51.539506802843405" />
-      <entry key="H2" value="69.66961691353987" />
-      <entry key="H4" value="82.21267811341079" />
-      <entry key="D1" value="95.10515687632511" />
-      <entry key="W1" value="97.57941935872033" />
+      <entry key="MS500" value="0.0" />
+      <entry key="S2" value="1.7166658529252353E-94" />
+      <entry key="S5" value="4.5335412933832295E-38" />
+      <entry key="S10" value="3.17230037454407E-19" />
+      <entry key="S30" value="1.3411729045017441E-6" />
+      <entry key="S60" value="0.00213671047504793" />
+      <entry key="M2" value="0.11380088767221253" />
+      <entry key="M5" value="2.0624750139460586" />
+      <entry key="M10" value="6.856857971653905" />
+      <entry key="M15" value="11.803356620192442" />
+      <entry key="M30" value="26.469777623377084" />
+      <entry key="H1" value="47.22249561786437" />
+      <entry key="H2" value="66.68801042533867" />
+      <entry key="H4" value="80.43424042153654" />
+      <entry key="D1" value="94.75913648774453" />
+      <entry key="W1" value="97.52862260089188" />
     </decayedSelected>
     <decayedShown>
-      <entry key="MS100" value="0.03730469080615982" />
-      <entry key="MS500" value="0.8320771686811178" />
-      <entry key="S2" value="5.015142856047554" />
-      <entry key="S5" value="12.878937861639868" />
-      <entry key="S10" value="23.356931404684865" />
-      <entry key="S30" value="45.10454376693332" />
-      <entry key="S60" value="58.01248066805304" />
-      <entry key="M2" value="69.9097965428128" />
-      <entry key="M5" value="92.39183523553187" />
-      <entry key="M10" value="127.63329895332956" />
-      <entry key="M15" value="160.14426040326543" />
-      <entry key="M30" value="247.05714149667077" />
-      <entry key="H1" value="373.7756195082031" />
-      <entry key="H2" value="508.09838323415414" />
-      <entry key="H4" value="613.6861148972604" />
-      <entry key="D1" value="733.5036599009393" />
-      <entry key="W1" value="757.8234879124091" />
+      <entry key="MS100" value="0.07346046497721138" />
+      <entry key="MS500" value="1.1976596927311516" />
+      <entry key="S2" value="6.753973208288048" />
+      <entry key="S5" value="13.808452726185745" />
+      <entry key="S10" value="18.676414609963327" />
+      <entry key="S30" value="29.710720291443454" />
+      <entry key="S60" value="49.78351643223377" />
+      <entry key="M2" value="79.77944844646376" />
+      <entry key="M5" value="132.95652984161134" />
+      <entry key="M10" value="187.46621098890932" />
+      <entry key="M15" value="228.96223465170806" />
+      <entry key="M30" value="327.8488665378364" />
+      <entry key="H1" value="465.1640038011243" />
+      <entry key="H2" value="610.1949986830534" />
+      <entry key="H4" value="724.8297494776428" />
+      <entry key="D1" value="855.737886944516" />
+      <entry key="W1" value="882.4151157390284" />
     </decayedShown>
   </component>
   <component name="ProjectColorInfo">{
@@ -96,35 +96,35 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Application.Main.executor": "Run",
-    "Maven.Tetris-2006ICT [org.openjfx:javafx-maven-plugin:0.0.8:run].executor": "Run",
-    "Maven.mavenProj [org.openjfx:javafx-maven-plugin:0.0.8:run].executor": "Run",
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
-    "codeWithMe.voiceChat.enabledByDefault": "false",
-    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
-    "git-widget-placeholder": "main",
-    "ignore.virus.scanning.warn.message": "true",
-    "junie.onboarding.icon.badge.shown": "true",
-    "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "C:/Users/aksac/IdeaProjects/Tetris-2006ICT",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.jshint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.jshint": "",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "project.structure.last.edited": "Modules",
-    "project.structure.proportion": "0.15",
-    "project.structure.side.proportion": "0.2",
-    "to.speed.mode.migration.done": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Application.Main.executor&quot;: &quot;Run&quot;,
+    &quot;Maven.Tetris-2006ICT [org.openjfx:javafx-maven-plugin:0.0.8:run].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.mavenProj [org.openjfx:javafx-maven-plugin:0.0.8:run].executor&quot;: &quot;Run&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;codeWithMe.voiceChat.enabledByDefault&quot;: &quot;false&quot;,
+    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
+    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/aksac/IdeaProjects/Tetris-2006ICT&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.jshint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.jshint&quot;: &quot;&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Modules&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.15&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.2&quot;,
+    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
