@@ -3,205 +3,670 @@ package org.example;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
-import javafx.stage.Stage;
-
-import javafx.animation.AnimationTimer;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.text.TextAlignment;
+import javafx.stage.Stage;
+import javafx.animation.AnimationTimer;
 
 import org.example.pieces.*;
-import java.util.Random;
 
-import javafx.scene.input.KeyEvent;
+import java.util.Optional;
+import java.util.Random;
 
 public class PlayScreen {
 
     private static final int ROWS = 20;
     private static final int COLS = 10;
-    private static final int CELL_SIZE = 25; // size of each square in pixels
+    private static final int CELL_SIZE = 29;
 
-    private static Color[][] board = new Color[ROWS][COLS]; // what's filled on the board (null = empty)
-    private static Region[][] cellViews = new Region[ROWS][COLS]; // the actual squares shown on screen
-    private static AnimationTimer timer; // controls the falling loop
-    private static Tetromino currentPiece; // the piece falling right now
+    private static Color[][] board = new Color[ROWS][COLS];
+    private static Region[][] cellViews = new Region[ROWS][COLS];
+
+    private static AnimationTimer timer;
+    private static Tetromino currentPiece;
     private static Random random = new Random();
 
+    // Pause / game-over state
+    private static boolean paused = false;
+    private static boolean gameOver = false;
+
     public static void show(Stage stage) {
+
+        // Reset state whenever a new game starts.
+        paused = false;
+        gameOver = false;
+
         BorderPane root = new BorderPane();
 
-        // Build the empty board and reset old data
+        // ---------------------------------------------------------
+        // BUILD EMPTY 10 x 20 BOARD
+        // ---------------------------------------------------------
+
         GridPane grid = new GridPane();
+
         grid.setStyle("-fx-background-color: black");
-        grid.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        grid.setMaxSize(
+                Region.USE_PREF_SIZE,
+                Region.USE_PREF_SIZE
+        );
 
         for (int row = 0; row < ROWS; row++) {
+
             for (int col = 0; col < COLS; col++) {
+
                 Region cell = new Region();
-                cell.setPrefSize(CELL_SIZE, CELL_SIZE);
-                cell.setStyle("-fx-background-color: #101010; -fx-border-color:#101010; -fx-border-width: 1;");
+
+                cell.setPrefSize(
+                        CELL_SIZE,
+                        CELL_SIZE
+                );
+
+                cell.setStyle(
+                        "-fx-background-color: #101010;" +
+                                "-fx-border-color: #101010;" +
+                                "-fx-border-width: 1;"
+                );
+
                 grid.add(cell, col, row);
+
                 cellViews[row][col] = cell;
-                board[row][col] = null; // clear leftover data from the last game
+
+                // Clear data left from an earlier game.
+                board[row][col] = null;
             }
         }
 
+        // ---------------------------------------------------------
+        // CREATE FIRST TETROMINO
+        // ---------------------------------------------------------
+
         currentPiece = spawnRandomPiece();
 
-        // Layer for the falling piece, sits on top of the board
-        // We use pixels here (not grid cells) so it can fall smoothly
+        // Falling pieces are drawn on a separate pixel-based layer.
+        // This allows smooth movement between grid rows.
         Pane pieceLayer = new Pane();
+
         pieceLayer.setPickOnBounds(false);
-        pieceLayer.setPrefSize(COLS * CELL_SIZE, ROWS * CELL_SIZE);
-        pieceLayer.setMaxSize(COLS * CELL_SIZE, ROWS * CELL_SIZE);
 
-        StackPane boardStack = new StackPane(grid, pieceLayer);
-        boardStack.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
+        pieceLayer.setPrefSize(
+                COLS * CELL_SIZE,
+                ROWS * CELL_SIZE
+        );
 
-        drawFallingPiece(currentPiece, pieceLayer);
+        pieceLayer.setMaxSize(
+                COLS * CELL_SIZE,
+                ROWS * CELL_SIZE
+        );
 
-        // Main game loop - runs every frame
+        StackPane boardStack =
+                new StackPane(grid, pieceLayer);
+
+        boardStack.setMaxSize(
+                Region.USE_PREF_SIZE,
+                Region.USE_PREF_SIZE
+        );
+
+        // ---------------------------------------------------------
+        // PAUSE MESSAGE
+        // ---------------------------------------------------------
+
+        Label pauseMessage = new Label(
+                "Game is paused.\nPress P to continue."
+        );
+
+        pauseMessage.setStyle(
+                "-fx-text-fill: white;" +
+                        "-fx-font-size: 16px;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-background-color: rgba(0, 0, 0, 0.78);" +
+                        "-fx-background-radius: 8;" +
+                        "-fx-padding: 12 18 12 18;"
+        );
+
+        pauseMessage.setTextAlignment(
+                TextAlignment.CENTER
+        );
+
+        pauseMessage.setAlignment(Pos.CENTER);
+
+        pauseMessage.setVisible(false);
+
+        // Do not let the label interfere with mouse input.
+        pauseMessage.setMouseTransparent(true);
+
+        StackPane.setAlignment(
+                pauseMessage,
+                Pos.TOP_CENTER
+        );
+
+        StackPane.setMargin(
+                pauseMessage,
+                new Insets(35, 0, 0, 0)
+        );
+
+        boardStack.getChildren().add(pauseMessage);
+
+        drawFallingPiece(
+                currentPiece,
+                pieceLayer
+        );
+
+        // ---------------------------------------------------------
+        // MAIN GAME LOOP
+        // ---------------------------------------------------------
+
+        // Stop an old timer if PlayScreen is opened again.
         if (timer != null) {
-            timer.stop(); // stop the old game if one's still running
+            timer.stop();
         }
 
         timer = new AnimationTimer() {
-            private boolean landed = false; // true once the game is over
 
             @Override
             public void handle(long now) {
-                if (landed) return;
+
+                // Completely freeze automatic movement while paused.
+                if (paused || gameOver) {
+                    return;
+                }
 
                 if (canMoveDown(currentPiece)) {
-                    currentPiece.addYOffset(1); // move down a tiny bit for a smooth fall
+
+                    /*
+                     * Move by one PIXEL rather than immediately moving
+                     * by one entire board row.
+                     *
+                     * This provides the smooth normal downward movement
+                     * required by the specification.
+                     */
+                    currentPiece.addYOffset(1);
 
                     if (currentPiece.getYOffset() >= CELL_SIZE) {
+
                         currentPiece.resetYOffset();
-                        currentPiece.moveDown(); // actually move to the next row
+
+                        currentPiece.moveDown();
                     }
 
-                    drawFallingPiece(currentPiece, pieceLayer);
-                } else {
-                    // piece can't fall anymore, lock it in place
-                    drawPiece(currentPiece);
-                    pieceLayer.getChildren().clear();
+                    drawFallingPiece(
+                            currentPiece,
+                            pieceLayer
+                    );
 
-                    // ADDED: detect and erase completed rows before the next piece spawns
-                    int rowsRemoved = eraseFullRows();
+                } else {
+
+                    // -------------------------------------------------
+                    // PIECE HAS LANDED
+                    // -------------------------------------------------
+
+                    drawPiece(currentPiece);
+
+                    pieceLayer
+                            .getChildren()
+                            .clear();
+
+                    // Detect and erase ALL completed rows.
+                    int rowsRemoved =
+                            eraseFullRows();
 
                     if (rowsRemoved > 0) {
-                        System.out.println("Rows removed: " + rowsRemoved);
+
+                        System.out.println(
+                                "Rows removed: " +
+                                        rowsRemoved
+                        );
                     }
 
-                    Tetromino nextPiece = spawnRandomPiece();
+                    // Create the next piece.
+                    Tetromino nextPiece =
+                            spawnRandomPiece();
 
                     if (canSpawn(nextPiece)) {
+
                         currentPiece = nextPiece;
+
+                        drawFallingPiece(
+                                currentPiece,
+                                pieceLayer
+                        );
+
                     } else {
-                        // no room for a new piece = game over
-                        // TODO: show a real Game Over screen instead of this printout
-                        System.out.println("GAME OVER");
-                        landed = true;
+
+                        // ---------------------------------------------
+                        // GAME OVER
+                        // ---------------------------------------------
+
+                        System.out.println(
+                                "GAME OVER"
+                        );
+
+                        gameOver = true;
+                        paused = false;
+
+                        pauseMessage.setVisible(false);
+
+                        timer.stop();
                     }
                 }
             }
         };
 
         timer.start();
+
         root.setCenter(boardStack);
 
-        // Back button
-        Button backButton = new Button("Back");
-        backButton.setOnAction(e -> MainMenu.show(stage));
-        VBox bottom = new VBox(backButton);
-        bottom.setAlignment(Pos.TOP_CENTER);
-        bottom.setPadding(new Insets(20));
-        root.setBottom(bottom);
+        // ---------------------------------------------------------
+        // BACK BUTTON
+        // ---------------------------------------------------------
 
-        Scene scene = new Scene(root, 1000, 700);
-        stage.setTitle("Tetris - Play");
-        stage.setScene(scene);
+        Button backButton =
+                new Button("Back");
 
-        // Listens for arrow key presses
-        // (using a filter here since buttons can steal arrow key presses otherwise)
-        scene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
-            switch (event.getCode()) {
-                case DOWN -> {
-                    // drop down fast
-                    if (canMoveDown(currentPiece)) {
-                        currentPiece.moveDown();
-                        currentPiece.resetYOffset();
-                    }
+        backButton.setPrefWidth(200);
+        backButton.setPrefHeight(45);
+
+        // Same blue styling as the Play button.
+        backButton.setStyle(
+                "-fx-font-size: 16px;" +
+                        "-fx-text-fill: #ffffff;" +
+                        "-fx-font-weight: 900;" +
+                        "-fx-background-color: #3a86ff;" +
+                        "-fx-background-radius: 6px;"
+        );
+
+        // ---------------------------------------------------------
+        // BACK / STOP GAME FUNCTION
+        // ---------------------------------------------------------
+
+        backButton.setOnAction(e -> {
+
+            /*
+             * If GAME OVER has already occurred,
+             * there is no active game to confirm stopping.
+             *
+             * Therefore Back goes directly to Main Menu.
+             */
+            if (gameOver) {
+
+                if (timer != null) {
+                    timer.stop();
                 }
-                case LEFT -> {
-                    if (canMoveLeft(currentPiece)) currentPiece.moveLeft();
-                }
-                case RIGHT -> {
-                    if (canMoveRight(currentPiece)) currentPiece.moveRight();
-                }
-                case UP -> {
-                    // rotate, but only if it's a legal spot to rotate into
-                    if (canRotate(currentPiece)) {
-                        currentPiece.setShape(currentPiece.getRotatedShape());
-                    }
-                }
-                default -> {}
+
+                MainMenu.show(stage);
+
+                return;
             }
 
-            drawFallingPiece(currentPiece, pieceLayer);
+            /*
+             * If the game is still active, pressing Back
+             * automatically pauses it.
+             *
+             * The pause message remains visible behind
+             * the confirmation dialog.
+             */
+            paused = true;
+
+            pauseMessage.setVisible(true);
+
+            Alert confirmation =
+                    new Alert(
+                            Alert.AlertType.CONFIRMATION
+                    );
+
+            confirmation.initOwner(stage);
+
+            confirmation.setTitle(
+                    "Stop Game"
+            );
+
+            confirmation.setHeaderText(
+                    "Stop Game"
+            );
+
+            confirmation.setContentText(
+                    "Are you sure you want to stop the current game?"
+            );
+
+            ButtonType noButton =
+                    new ButtonType("No");
+
+            ButtonType yesButton =
+                    new ButtonType("Yes");
+
+            confirmation
+                    .getButtonTypes()
+                    .setAll(
+                            noButton,
+                            yesButton
+                    );
+
+            Optional<ButtonType> result =
+                    confirmation.showAndWait();
+
+            if (result.isPresent()
+                    && result.get() == yesButton) {
+
+                // YES:
+                // Stop the game and return to Main Menu.
+
+                if (timer != null) {
+                    timer.stop();
+                }
+
+                paused = false;
+
+                pauseMessage.setVisible(false);
+
+                MainMenu.show(stage);
+
+            } else {
+
+                /*
+                 * NO:
+                 *
+                 * Close the confirmation but DO NOT
+                 * automatically resume the game.
+                 *
+                 * The game stays paused and the message
+                 * remains until P is pressed.
+                 */
+
+                paused = true;
+
+                pauseMessage.setVisible(true);
+            }
         });
+
+        VBox bottom =
+                new VBox(backButton);
+
+        bottom.setAlignment(Pos.CENTER);
+
+        bottom.setPadding(
+                new Insets(35, 0, 15, 0)
+        );
+
+        root.setBottom(bottom);
+
+        // ---------------------------------------------------------
+        // SCENE
+        // ---------------------------------------------------------
+
+        Scene scene =
+                new Scene(
+                        root,
+                        1000,
+                        700
+                );
+
+        stage.setTitle(
+                "Tetris - Play"
+        );
+
+        stage.setScene(scene);
+
+        // ---------------------------------------------------------
+        // KEYBOARD CONTROLS
+        // ---------------------------------------------------------
+
+        /*
+         * Event filter is used because JavaFX buttons can otherwise
+         * take keyboard focus and interfere with arrow-key controls.
+         */
+        scene.addEventFilter(
+                KeyEvent.KEY_PRESSED,
+                event -> {
+
+                    switch (event.getCode()) {
+
+                        // ---------------------------------------------
+                        // P = PAUSE / RESUME
+                        // ---------------------------------------------
+
+                        case P -> {
+
+                            // P does nothing after GAME OVER.
+                            if (!gameOver) {
+
+                                paused = !paused;
+
+                                pauseMessage.setVisible(
+                                        paused
+                                );
+
+                                if (paused) {
+
+                                    System.out.println(
+                                            "Game paused"
+                                    );
+
+                                } else {
+
+                                    System.out.println(
+                                            "Game resumed"
+                                    );
+                                }
+                            }
+
+                            event.consume();
+                        }
+
+                        // ---------------------------------------------
+                        // DOWN = MANUAL FAST DROP
+                        // ---------------------------------------------
+
+                        case DOWN -> {
+
+                            if (!paused &&
+                                    !gameOver &&
+                                    canMoveDown(currentPiece)) {
+
+                                currentPiece.moveDown();
+
+                                currentPiece.resetYOffset();
+
+                                drawFallingPiece(
+                                        currentPiece,
+                                        pieceLayer
+                                );
+                            }
+
+                            event.consume();
+                        }
+
+                        // ---------------------------------------------
+                        // LEFT
+                        // ---------------------------------------------
+
+                        case LEFT -> {
+
+                            if (!paused &&
+                                    !gameOver &&
+                                    canMoveLeft(currentPiece)) {
+
+                                currentPiece.moveLeft();
+
+                                drawFallingPiece(
+                                        currentPiece,
+                                        pieceLayer
+                                );
+                            }
+
+                            event.consume();
+                        }
+
+                        // ---------------------------------------------
+                        // RIGHT
+                        // ---------------------------------------------
+
+                        case RIGHT -> {
+
+                            if (!paused &&
+                                    !gameOver &&
+                                    canMoveRight(currentPiece)) {
+
+                                currentPiece.moveRight();
+
+                                drawFallingPiece(
+                                        currentPiece,
+                                        pieceLayer
+                                );
+                            }
+
+                            event.consume();
+                        }
+
+                        // ---------------------------------------------
+                        // UP = ROTATE
+                        // ---------------------------------------------
+
+                        case UP -> {
+
+                            if (!paused &&
+                                    !gameOver &&
+                                    canRotate(currentPiece)) {
+
+                                currentPiece.setShape(
+                                        currentPiece
+                                                .getRotatedShape()
+                                );
+
+                                drawFallingPiece(
+                                        currentPiece,
+                                        pieceLayer
+                                );
+                            }
+
+                            event.consume();
+                        }
+
+                        default -> {
+                        }
+                    }
+                }
+        );
 
         stage.show();
     }
 
-    // Locks a piece into the board once it's landed
-    private static void drawPiece(Tetromino piece) {
-        for (int r = 0; r < piece.getShape().length; r++) {
-            for (int c = 0; c < piece.getShape()[r].length; c++) {
+    // -------------------------------------------------------------
+    // LOCK PIECE INTO BOARD
+    // -------------------------------------------------------------
+
+    private static void drawPiece(
+            Tetromino piece
+    ) {
+
+        for (int r = 0;
+             r < piece.getShape().length;
+             r++) {
+
+            for (int c = 0;
+                 c < piece.getShape()[r].length;
+                 c++) {
+
                 if (piece.getShape()[r][c] == 1) {
-                    int boardRow = piece.getRow() + r;
-                    int boardCol = piece.getCol() + c;
 
-                    String colorHex = piece.getColor().toString().replace("0x", "#"); // fix color format for CSS
+                    int boardRow =
+                            piece.getRow() + r;
 
-                    cellViews[boardRow][boardCol].setStyle(
-                            "-fx-background-color: " + colorHex + "; -fx-border-color: #101010; -fx-border-width: 1;"
-                    );
-                    board[boardRow][boardCol] = piece.getColor();
+                    int boardCol =
+                            piece.getCol() + c;
+
+                    String colorHex =
+                            piece
+                                    .getColor()
+                                    .toString()
+                                    .replace(
+                                            "0x",
+                                            "#"
+                                    );
+
+                    cellViews[boardRow][boardCol]
+                            .setStyle(
+                                    "-fx-background-color: " +
+                                            colorHex +
+                                            ";" +
+                                            "-fx-border-color: #101010;" +
+                                            "-fx-border-width: 1;"
+                            );
+
+                    /*
+                     * Store the actual Color in the board.
+                     * This is important because colours must
+                     * remain correct when rows move down.
+                     */
+                    board[boardRow][boardCol] =
+                            piece.getColor();
                 }
             }
         }
     }
 
-    // ADDED: detects and removes all completed rows.
-    // Returns how many rows were removed.
+    // -------------------------------------------------------------
+    // ERASE FULL ROWS
+    // -------------------------------------------------------------
+
+    /*
+     * Detects and removes every completed row.
+     *
+     * Returns the total number of rows removed.
+     */
     private static int eraseFullRows() {
+
         int rowsRemoved = 0;
 
-        for (int row = ROWS - 1; row >= 0; row--) {
+        /*
+         * Work upward from the bottom of the board.
+         */
+        for (int row = ROWS - 1;
+             row >= 0;
+             row--) {
+
             if (isFullRow(row)) {
+
                 removeRow(row);
+
                 rowsRemoved++;
 
-                // A row above has moved into this same position,
-                // so check this row index again.
+                /*
+                 * A row above has now moved into this
+                 * same row position.
+                 *
+                 * Check this index again so consecutive
+                 * full rows are also removed.
+                 */
                 row++;
             }
         }
 
         if (rowsRemoved > 0) {
+
             refreshBoardView();
         }
 
         return rowsRemoved;
     }
 
-    // ADDED: a row is full only when every board cell contains a block.
-    private static boolean isFullRow(int row) {
+    // -------------------------------------------------------------
+    // CHECK FULL ROW
+    // -------------------------------------------------------------
+
+    private static boolean isFullRow(
+            int row
+    ) {
+
         for (Color cell : board[row]) {
+
             if (cell == null) {
+
                 return false;
             }
         }
@@ -209,90 +674,228 @@ public class PlayScreen {
         return true;
     }
 
-    // ADDED: removes one full row and moves all rows above it down by one.
-    // The existing Color values move with the blocks, preserving their colours.
-    private static void removeRow(int row) {
-        for (int r = row; r > 0; r--) {
-            for (int col = 0; col < COLS; col++) {
-                board[r][col] = board[r - 1][col];
+    // -------------------------------------------------------------
+    // REMOVE ONE ROW
+    // -------------------------------------------------------------
+
+    /*
+     * Removes a completed row and shifts everything
+     * above it downward.
+     *
+     * The Color objects themselves are moved, which
+     * preserves the original tetromino colours.
+     */
+    private static void removeRow(
+            int row
+    ) {
+
+        for (int r = row;
+             r > 0;
+             r--) {
+
+            for (int col = 0;
+                 col < COLS;
+                 col++) {
+
+                board[r][col] =
+                        board[r - 1][col];
             }
         }
 
-        // Clear the new top row.
-        for (int col = 0; col < COLS; col++) {
+        // Clear the newly-created top row.
+        for (int col = 0;
+             col < COLS;
+             col++) {
+
             board[0][col] = null;
         }
     }
 
-    // ADDED: updates the JavaFX grid after rows have been shifted.
+    // -------------------------------------------------------------
+    // REFRESH BOARD AFTER ROW REMOVAL
+    // -------------------------------------------------------------
+
     private static void refreshBoardView() {
-        for (int row = 0; row < ROWS; row++) {
-            for (int col = 0; col < COLS; col++) {
-                Color cellColor = board[row][col];
+
+        for (int row = 0;
+             row < ROWS;
+             row++) {
+
+            for (int col = 0;
+                 col < COLS;
+                 col++) {
+
+                Color cellColor =
+                        board[row][col];
 
                 if (cellColor == null) {
-                    cellViews[row][col].setStyle(
-                            "-fx-background-color: #101010; -fx-border-color: #101010; -fx-border-width: 1;"
-                    );
-                } else {
-                    String colorHex = cellColor.toString().replace("0x", "#");
 
-                    cellViews[row][col].setStyle(
-                            "-fx-background-color: " + colorHex + "; -fx-border-color: #101010; -fx-border-width: 1;"
-                    );
+                    cellViews[row][col]
+                            .setStyle(
+                                    "-fx-background-color: #101010;" +
+                                            "-fx-border-color: #101010;" +
+                                            "-fx-border-width: 1;"
+                            );
+
+                } else {
+
+                    String colorHex =
+                            cellColor
+                                    .toString()
+                                    .replace(
+                                            "0x",
+                                            "#"
+                                    );
+
+                    cellViews[row][col]
+                            .setStyle(
+                                    "-fx-background-color: " +
+                                            colorHex +
+                                            ";" +
+                                            "-fx-border-color: #101010;" +
+                                            "-fx-border-width: 1;"
+                            );
                 }
             }
         }
     }
 
-    // Draws the piece that's currently falling
-    private static void drawFallingPiece(Tetromino piece, Pane pieceLayer) {
-        pieceLayer.getChildren().clear(); // wipe old drawing first
+    // -------------------------------------------------------------
+    // DRAW CURRENT FALLING PIECE
+    // -------------------------------------------------------------
 
-        for (int r = 0; r < piece.getShape().length; r++) {
-            for (int c = 0; c < piece.getShape()[r].length; c++) {
+    private static void drawFallingPiece(
+            Tetromino piece,
+            Pane pieceLayer
+    ) {
+
+        pieceLayer
+                .getChildren()
+                .clear();
+
+        for (int r = 0;
+             r < piece.getShape().length;
+             r++) {
+
+            for (int c = 0;
+                 c < piece.getShape()[r].length;
+                 c++) {
+
                 if (piece.getShape()[r][c] == 1) {
-                    double x = (piece.getCol() + c) * CELL_SIZE;
-                    double y = (piece.getRow() + r) * CELL_SIZE + piece.getYOffset(); // yOffset = smooth falling nudge
 
-                    Rectangle rect = new Rectangle(CELL_SIZE, CELL_SIZE);
+                    double x =
+                            (piece.getCol() + c)
+                                    * CELL_SIZE;
+
+                    /*
+                     * yOffset gives the intermediate
+                     * pixel positions required for smooth
+                     * automatic downward movement.
+                     */
+                    double y =
+                            (piece.getRow() + r)
+                                    * CELL_SIZE
+                                    + piece.getYOffset();
+
+                    Rectangle rect =
+                            new Rectangle(
+                                    CELL_SIZE,
+                                    CELL_SIZE
+                            );
+
                     rect.setX(x);
                     rect.setY(y);
-                    rect.setFill(piece.getColor());
-                    rect.setStroke(Color.web("#101010"));
+
+                    rect.setFill(
+                            piece.getColor()
+                    );
+
+                    rect.setStroke(
+                            Color.web("#101010")
+                    );
+
                     rect.setStrokeWidth(1);
 
-                    pieceLayer.getChildren().add(rect);
+                    pieceLayer
+                            .getChildren()
+                            .add(rect);
                 }
             }
         }
     }
 
-    // Picks a random tetromino piece to spawn
+    // -------------------------------------------------------------
+    // RANDOM TETROMINO
+    // -------------------------------------------------------------
+
     private static Tetromino spawnRandomPiece() {
-        int type = random.nextInt(7);
+
+        int type =
+                random.nextInt(7);
 
         return switch (type) {
-            case 0 -> new IPiece(0, 3);
-            case 1 -> new OPiece(0, 3);
-            case 2 -> new TPiece(0, 3);
-            case 3 -> new SPiece(0, 3);
-            case 4 -> new ZPiece(0, 3);
-            case 5 -> new JPiece(0, 3);
-            default -> new LPiece(0, 3);
+
+            case 0 ->
+                    new IPiece(0, 3);
+
+            case 1 ->
+                    new OPiece(0, 3);
+
+            case 2 ->
+                    new TPiece(0, 3);
+
+            case 3 ->
+                    new SPiece(0, 3);
+
+            case 4 ->
+                    new ZPiece(0, 3);
+
+            case 5 ->
+                    new JPiece(0, 3);
+
+            default ->
+                    new LPiece(0, 3);
         };
     }
 
-    // Checks if the piece can move down one row
-    private static boolean canMoveDown(Tetromino piece) {
-        for (int r = 0; r < piece.getShape().length; r++) {
-            for (int c = 0; c < piece.getShape()[r].length; c++) {
-                if (piece.getShape()[r][c] == 1) {
-                    int boardRow = piece.getRow() + r + 1;
-                    int boardCol = piece.getCol() + c;
+    // -------------------------------------------------------------
+    // CAN MOVE DOWN?
+    // -------------------------------------------------------------
 
-                    if (boardRow >= ROWS) return false; // hit the floor
-                    if (board[boardRow][boardCol] != null) return false; // hit another piece
+    private static boolean canMoveDown(
+            Tetromino piece
+    ) {
+
+        for (int r = 0;
+             r < piece.getShape().length;
+             r++) {
+
+            for (int c = 0;
+                 c < piece.getShape()[r].length;
+                 c++) {
+
+                if (piece.getShape()[r][c] == 1) {
+
+                    int boardRow =
+                            piece.getRow()
+                                    + r
+                                    + 1;
+
+                    int boardCol =
+                            piece.getCol()
+                                    + c;
+
+                    // Hit floor.
+                    if (boardRow >= ROWS) {
+                        return false;
+                    }
+
+                    // Hit another piece.
+                    if (board[boardRow][boardCol]
+                            != null) {
+
+                        return false;
+                    }
                 }
             }
         }
@@ -300,16 +903,41 @@ public class PlayScreen {
         return true;
     }
 
-    // Checks if the piece can move one column left
-    private static boolean canMoveLeft(Tetromino piece) {
-        for (int r = 0; r < piece.getShape().length; r++) {
-            for (int c = 0; c < piece.getShape()[r].length; c++) {
-                if (piece.getShape()[r][c] == 1) {
-                    int boardRow = piece.getRow() + r;
-                    int boardCol = piece.getCol() + c - 1;
+    // -------------------------------------------------------------
+    // CAN MOVE LEFT?
+    // -------------------------------------------------------------
 
-                    if (boardCol < 0) return false; // hit the left wall
-                    if (board[boardRow][boardCol] != null) return false; // hit another piece
+    private static boolean canMoveLeft(
+            Tetromino piece
+    ) {
+
+        for (int r = 0;
+             r < piece.getShape().length;
+             r++) {
+
+            for (int c = 0;
+                 c < piece.getShape()[r].length;
+                 c++) {
+
+                if (piece.getShape()[r][c] == 1) {
+
+                    int boardRow =
+                            piece.getRow() + r;
+
+                    int boardCol =
+                            piece.getCol()
+                                    + c
+                                    - 1;
+
+                    if (boardCol < 0) {
+                        return false;
+                    }
+
+                    if (board[boardRow][boardCol]
+                            != null) {
+
+                        return false;
+                    }
                 }
             }
         }
@@ -317,16 +945,41 @@ public class PlayScreen {
         return true;
     }
 
-    // Checks if the piece can move one column right
-    private static boolean canMoveRight(Tetromino piece) {
-        for (int r = 0; r < piece.getShape().length; r++) {
-            for (int c = 0; c < piece.getShape()[r].length; c++) {
-                if (piece.getShape()[r][c] == 1) {
-                    int boardRow = piece.getRow() + r;
-                    int boardCol = piece.getCol() + c + 1;
+    // -------------------------------------------------------------
+    // CAN MOVE RIGHT?
+    // -------------------------------------------------------------
 
-                    if (boardCol >= COLS) return false; // hit the right wall
-                    if (board[boardRow][boardCol] != null) return false; // hit another piece
+    private static boolean canMoveRight(
+            Tetromino piece
+    ) {
+
+        for (int r = 0;
+             r < piece.getShape().length;
+             r++) {
+
+            for (int c = 0;
+                 c < piece.getShape()[r].length;
+                 c++) {
+
+                if (piece.getShape()[r][c] == 1) {
+
+                    int boardRow =
+                            piece.getRow() + r;
+
+                    int boardCol =
+                            piece.getCol()
+                                    + c
+                                    + 1;
+
+                    if (boardCol >= COLS) {
+                        return false;
+                    }
+
+                    if (board[boardRow][boardCol]
+                            != null) {
+
+                        return false;
+                    }
                 }
             }
         }
@@ -334,19 +987,49 @@ public class PlayScreen {
         return true;
     }
 
-    // Checks if it's safe to rotate before actually rotating
-    private static boolean canRotate(Tetromino piece) {
-        int[][] rotatedShape = piece.getRotatedShape();
+    // -------------------------------------------------------------
+    // CAN ROTATE?
+    // -------------------------------------------------------------
 
-        for (int r = 0; r < rotatedShape.length; r++) {
-            for (int c = 0; c < rotatedShape[r].length; c++) {
+    private static boolean canRotate(
+            Tetromino piece
+    ) {
+
+        int[][] rotatedShape =
+                piece.getRotatedShape();
+
+        for (int r = 0;
+             r < rotatedShape.length;
+             r++) {
+
+            for (int c = 0;
+                 c < rotatedShape[r].length;
+                 c++) {
+
                 if (rotatedShape[r][c] == 1) {
-                    int boardRow = piece.getRow() + r;
-                    int boardCol = piece.getCol() + c;
 
-                    if (boardCol < 0 || boardCol >= COLS) return false; // hits a wall
-                    if (boardRow >= ROWS) return false; // hits the floor
-                    if (board[boardRow][boardCol] != null) return false; // overlaps another piece
+                    int boardRow =
+                            piece.getRow() + r;
+
+                    int boardCol =
+                            piece.getCol() + c;
+
+                    if (boardCol < 0 ||
+                            boardCol >= COLS) {
+
+                        return false;
+                    }
+
+                    if (boardRow >= ROWS) {
+
+                        return false;
+                    }
+
+                    if (board[boardRow][boardCol]
+                            != null) {
+
+                        return false;
+                    }
                 }
             }
         }
@@ -354,15 +1037,35 @@ public class PlayScreen {
         return true;
     }
 
-    // Checks if a new piece has room to spawn - if not, it's game over
-    private static boolean canSpawn(Tetromino piece) {
-        for (int r = 0; r < piece.getShape().length; r++) {
-            for (int c = 0; c < piece.getShape()[r].length; c++) {
-                if (piece.getShape()[r][c] == 1) {
-                    int boardRow = piece.getRow() + r;
-                    int boardCol = piece.getCol() + c;
+    // -------------------------------------------------------------
+    // CAN NEW PIECE SPAWN?
+    // -------------------------------------------------------------
 
-                    if (board[boardRow][boardCol] != null) return false; // no space to spawn
+    private static boolean canSpawn(
+            Tetromino piece
+    ) {
+
+        for (int r = 0;
+             r < piece.getShape().length;
+             r++) {
+
+            for (int c = 0;
+                 c < piece.getShape()[r].length;
+                 c++) {
+
+                if (piece.getShape()[r][c] == 1) {
+
+                    int boardRow =
+                            piece.getRow() + r;
+
+                    int boardCol =
+                            piece.getCol() + c;
+
+                    if (board[boardRow][boardCol]
+                            != null) {
+
+                        return false;
+                    }
                 }
             }
         }

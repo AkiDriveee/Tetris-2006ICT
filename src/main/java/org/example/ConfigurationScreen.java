@@ -176,8 +176,6 @@ public final class ConfigurationScreen {
 
         stage.setTitle("Tetris - Configuration");
         stage.setScene(scene);
-        stage.centerOnScreen();
-        stage.show();
     }
 
     private static Slider createIntegerSlider(
