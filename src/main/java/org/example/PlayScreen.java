@@ -317,7 +317,7 @@ public class PlayScreen {
             confirmation.initOwner(stage);
 
             confirmation.setTitle("Stop Game");
-            confirmation.setHeaderText("Stop Game");
+            confirmation.setHeaderText(null);
 
             confirmation.setContentText(
                     "Are you sure you want to stop the current game?"
