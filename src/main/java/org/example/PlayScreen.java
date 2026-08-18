@@ -324,10 +324,10 @@ public class PlayScreen {
             );
 
             ButtonType noButton =
-                    new ButtonType("No");
+                    new ButtonType("Yes");
 
             ButtonType yesButton =
-                    new ButtonType("Yes");
+                    new ButtonType("no");
 
             confirmation
                     .getButtonTypes()
