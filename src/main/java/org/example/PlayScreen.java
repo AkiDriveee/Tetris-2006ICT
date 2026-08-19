@@ -158,6 +158,8 @@ public class PlayScreen {
                 pieceLayer
         );
 
+
+
         // ---------------------------------------------------------
         // MAIN GAME LOOP
         // ---------------------------------------------------------
@@ -223,6 +225,8 @@ public class PlayScreen {
                                         rowsRemoved
                         );
                     }
+
+                    printBoard();
 
                     // Create the next piece.
                     Tetromino nextPiece =
@@ -827,6 +831,31 @@ public class PlayScreen {
     }
 
     // -------------------------------------------------------------
+    // PRINT BOARD TO TERMINAL
+    // -------------------------------------------------------------
+
+    private static void printBoard() {
+
+        System.out.println("Current board:");
+
+        for (int row = 0; row < ROWS; row++) {
+
+            for (int col = 0; col < COLS; col++) {
+
+                if (board[row][col] == null) {
+                    System.out.print("0 ");
+                } else {
+                    System.out.print("1 ");
+                }
+            }
+
+            System.out.println();
+        }
+
+        System.out.println();
+    }
+
+    // -------------------------------------------------------------
     // RANDOM TETROMINO
     // -------------------------------------------------------------
 
@@ -906,7 +935,7 @@ public class PlayScreen {
     }
 
     // -------------------------------------------------------------
-    // CAN MOVE LEFT?
+    // CAN MOVE LEFT
     // -------------------------------------------------------------
 
     private static boolean canMoveLeft(
@@ -948,7 +977,7 @@ public class PlayScreen {
     }
 
     // -------------------------------------------------------------
-    // CAN MOVE RIGHT?
+    // MOVE RIGHT
     // -------------------------------------------------------------
 
     private static boolean canMoveRight(
