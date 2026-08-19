@@ -4,20 +4,19 @@ import javafx.scene.paint.Color;
 
 public abstract class Tetromino implements Movable {
 
-    protected int[][]shape;
+    protected int[][] shape;
     protected Color color;
     protected int row;
     protected int col;
 
     protected double yOffset = 0;
 
-    public Tetromino(int startRow, int startCol)
-    {
+    public Tetromino(int startRow, int startCol) {
         this.row = startRow;
         this.col = startCol;
     }
 
-    public void moveDown(){
+    public void moveDown() {
         row++;
     }
 

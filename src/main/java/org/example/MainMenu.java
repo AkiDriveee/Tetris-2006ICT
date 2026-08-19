@@ -17,7 +17,7 @@ import javafx.scene.layout.BackgroundSize;
 
 public class MainMenu {
 
-    private enum MenuOption{
+    private enum MenuOption {
         PLAY, HIGH_SCORE, CONFIGURATION, EXIT
     }
 
@@ -41,7 +41,7 @@ public class MainMenu {
         VBox.setMargin(titleLabel, new Insets(0, 0, 20, 0));
 
         // vertical box sets 20 pixel gap between buttons and centers everything
-        VBox root = new VBox(20, titleLabel,PlayBtn, HScoreBtn, ConfigurationBtn, ExitBtn);
+        VBox root = new VBox(20, titleLabel, PlayBtn, HScoreBtn, ConfigurationBtn, ExitBtn);
         root.setAlignment(Pos.CENTER);
         root.setStyle("-fx-padding: 40");
 
@@ -75,9 +75,9 @@ public class MainMenu {
     }
 
     //uses switch to redirect when buttons are pressed
-    private  static void handleMenuSelection(MenuOption option, Stage stage){
-        switch(option){
-            case PLAY ->startGame(stage);
+    private static void handleMenuSelection(MenuOption option, Stage stage) {
+        switch (option) {
+            case PLAY -> startGame(stage);
             case HIGH_SCORE -> showHighScores(stage);
             case CONFIGURATION -> showConfigurations(stage);
             case EXIT -> exitGame(stage);

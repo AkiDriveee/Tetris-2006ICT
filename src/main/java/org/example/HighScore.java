@@ -49,22 +49,24 @@ public class HighScore {
                 -fx-border-width: 1;
                 """);
 
-        String[][] scores = {
-                {"1", "Aksa", "9800"},
-                {"2", "Sukhdeep", "9200"},
-                {"3", "Taj", "8700"},
-                {"4", "Havana", "8300"},
-                {"5", "Emma", "7900"},
-                {"6", "Lima", "7500"},
-                {"7", "John", "7100"},
-                {"8", "Peria", "6800"},
-                {"9", "Olivia", "6400"},
-                {"10", "Max", "6000"}
+        ScoreEntry[] scores = {
+                new ScoreEntry("Aksa", 9800),
+                new ScoreEntry("Sukhdeep", 9780),
+                new ScoreEntry("Taj", 8700),
+                new ScoreEntry("Havana", 8300),
+                new ScoreEntry("Emma", 7900),
+                new ScoreEntry("Lima", 7500),
+                new ScoreEntry("John", 7100),
+                new ScoreEntry("Peria", 6800),
+                new ScoreEntry("Olivia", 6400),
+                new ScoreEntry("Max", 6000)
         };
 
-        for (String[] score : scores) {
+        for (int i = 0; i < scores.length; i++) {
 
-            Label rank = new Label(score[0]);
+            ScoreEntry score = scores[i];
+
+            Label rank = new Label(String.valueOf(i + 1));
             rank.setPrefWidth(45);
             rank.setStyle("""
                     -fx-text-fill: #00d9ff;
@@ -72,7 +74,7 @@ public class HighScore {
                     -fx-font-weight: bold;
                     """);
 
-            Label name = new Label(score[1]);
+            Label name = new Label(score.name());
             name.setPrefWidth(260);
             name.setStyle("""
                     -fx-text-fill: white;
@@ -80,7 +82,7 @@ public class HighScore {
                     -fx-font-weight: bold;
                     """);
 
-            Label points = new Label(score[2]);
+            Label points = new Label(String.valueOf(score.score()));
             points.setStyle("""
                     -fx-text-fill: #00d9ff;
                     -fx-font-size: 18px;
