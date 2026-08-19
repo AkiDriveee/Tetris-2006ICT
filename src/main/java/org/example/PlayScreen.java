@@ -158,6 +158,7 @@ public class PlayScreen {
                 pieceLayer
         );
 
+
         // ---------------------------------------------------------
         // MAIN GAME LOOP
         // ---------------------------------------------------------
@@ -223,6 +224,8 @@ public class PlayScreen {
                                         rowsRemoved
                         );
                     }
+
+                    printBoard();
 
                     // Create the next piece.
                     Tetromino nextPiece =
@@ -323,17 +326,17 @@ public class PlayScreen {
                     "Are you sure you want to stop the current game?"
             );
 
-            ButtonType noButton =
+            ButtonType yesButton =
                     new ButtonType("Yes");
 
-            ButtonType yesButton =
+            ButtonType noButton =
                     new ButtonType("no");
 
             confirmation
                     .getButtonTypes()
                     .setAll(
-                            noButton,
-                            yesButton
+                            yesButton,
+                            noButton
                     );
 
             Optional<ButtonType> result =
@@ -827,6 +830,31 @@ public class PlayScreen {
     }
 
     // -------------------------------------------------------------
+    // PRINT BOARD TO TERMINAL
+    // -------------------------------------------------------------
+
+    private static void printBoard() {
+
+        System.out.println("Current board:");
+
+        for (int row = 0; row < ROWS; row++) {
+
+            for (int col = 0; col < COLS; col++) {
+
+                if (board[row][col] == null) {
+                    System.out.print("0 ");
+                } else {
+                    System.out.print("1 ");
+                }
+            }
+
+            System.out.println();
+        }
+
+        System.out.println();
+    }
+
+    // -------------------------------------------------------------
     // RANDOM TETROMINO
     // -------------------------------------------------------------
 
@@ -837,26 +865,19 @@ public class PlayScreen {
 
         return switch (type) {
 
-            case 0 ->
-                    new IPiece(0, 3);
+            case 0 -> new IPiece(0, 3);
 
-            case 1 ->
-                    new OPiece(0, 3);
+            case 1 -> new OPiece(0, 3);
 
-            case 2 ->
-                    new TPiece(0, 3);
+            case 2 -> new TPiece(0, 3);
 
-            case 3 ->
-                    new SPiece(0, 3);
+            case 3 -> new SPiece(0, 3);
 
-            case 4 ->
-                    new ZPiece(0, 3);
+            case 4 -> new ZPiece(0, 3);
 
-            case 5 ->
-                    new JPiece(0, 3);
+            case 5 -> new JPiece(0, 3);
 
-            default ->
-                    new LPiece(0, 3);
+            default -> new LPiece(0, 3);
         };
     }
 
@@ -906,7 +927,7 @@ public class PlayScreen {
     }
 
     // -------------------------------------------------------------
-    // CAN MOVE LEFT?
+    // CAN MOVE LEFT
     // -------------------------------------------------------------
 
     private static boolean canMoveLeft(
@@ -948,7 +969,7 @@ public class PlayScreen {
     }
 
     // -------------------------------------------------------------
-    // CAN MOVE RIGHT?
+    // MOVE RIGHT
     // -------------------------------------------------------------
 
     private static boolean canMoveRight(
