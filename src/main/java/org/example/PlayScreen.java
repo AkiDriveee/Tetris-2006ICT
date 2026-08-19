@@ -323,17 +323,17 @@ public class PlayScreen {
                     "Are you sure you want to stop the current game?"
             );
 
-            ButtonType noButton =
+            ButtonType yesButton =
                     new ButtonType("Yes");
 
-            ButtonType yesButton =
+            ButtonType noButton =
                     new ButtonType("no");
 
             confirmation
                     .getButtonTypes()
                     .setAll(
-                            noButton,
-                            yesButton
+                            yesButton,
+                            noButton
                     );
 
             Optional<ButtonType> result =
