@@ -2,7 +2,7 @@ package org.example.pieces;
 
 import javafx.scene.paint.Color;
 
-public abstract class Tetromino{
+public abstract class Tetromino implements Movable {
 
     protected int[][]shape;
     protected Color color;
