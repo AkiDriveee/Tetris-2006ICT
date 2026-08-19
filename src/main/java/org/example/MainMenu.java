@@ -52,7 +52,11 @@ public class MainMenu {
         root.setBackground(new Background(bgImg));
 
         //sets width of all buttons to 400
-        for (Button b : new Button[]{PlayBtn, HScoreBtn, ConfigurationBtn, ExitBtn}) {
+        for (Button b : new Button[]{
+                PlayBtn,
+                HScoreBtn,
+                ConfigurationBtn,
+                ExitBtn}) {
             b.setPrefWidth(200);
         }
 
