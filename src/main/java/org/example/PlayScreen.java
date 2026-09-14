@@ -252,6 +252,8 @@ public class PlayScreen {
 
                         gameOver = true;
                         paused = false;
+                        // Play the game-finish sound once when the game ends.
+                        AudioManager.playGameFinishSound();
 
                         pauseMessage.setVisible(false);
 
@@ -556,6 +558,8 @@ public class PlayScreen {
                                     canMoveLeft(currentPiece)) {
 
                                 currentPiece.moveLeft();
+                                // Play movement sound when the piece moves successfully.
+                                AudioManager.playMoveTurnSound();
 
                                 drawFallingPiece(
                                         currentPiece,
@@ -577,6 +581,8 @@ public class PlayScreen {
                                     canMoveRight(currentPiece)) {
 
                                 currentPiece.moveRight();
+                                // Play movement sound when the piece moves successfully.
+                                AudioManager.playMoveTurnSound();
 
                                 drawFallingPiece(
                                         currentPiece,
@@ -601,6 +607,8 @@ public class PlayScreen {
                                         currentPiece
                                                 .getRotatedShape()
                                 );
+                                // Play rotation sound after a successful turn.
+                                AudioManager.playMoveTurnSound();
 
                                 drawFallingPiece(
                                         currentPiece,
@@ -712,6 +720,9 @@ public class PlayScreen {
         }
 
         if (rowsRemoved > 0) {
+
+            // Play the row-clear effect only when at least one row is removed.
+            AudioManager.playEraseLineSound();
 
             refreshBoardView();
         }
