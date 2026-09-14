@@ -253,6 +253,8 @@ public class PlayScreen {
 
                         gameOver = true;
                         paused = false;
+                        // Play the game-finish sound once when the game ends.
+                        AudioManager.playGameFinishSound();
 
                         pauseMessage.setVisible(false);
 
@@ -465,6 +467,65 @@ public class PlayScreen {
                         }
 
                         // ---------------------------------------------
+                        // M = TOGGLE BACKGROUND MUSIC
+                        // ---------------------------------------------
+
+                        case M -> {
+
+                            /*
+                             * Toggle the shared music setting so the change is
+                             * applied immediately during gameplay and remains
+                             * synchronized with the Configuration screen.
+                             */
+                            GameConfig config = GameSettings.getConfig();
+
+                            config.setMusicEnabled(
+                                    !config.isMusicEnabled()
+                            );
+
+                            // Apply the updated music setting immediately.
+                            AudioManager.updateMusicState();
+
+                            // Save the preference so it persists after restart.
+                            GameSettings.save();
+
+                            System.out.println(
+                                    "Music: " +
+                                            (config.isMusicEnabled() ? "On" : "Off")
+                            );
+
+                            event.consume();
+                        }
+
+                        // ---------------------------------------------
+                        // S = TOGGLE SOUND EFFECTS
+                        // ---------------------------------------------
+
+                        case S -> {
+
+                            /*
+                             * Toggle the shared sound-effects setting.
+                             * Sound effects added to gameplay can read this
+                             * value before playing any effect.
+                             */
+                            GameConfig config = GameSettings.getConfig();
+
+                            config.setSoundEnabled(
+                                    !config.isSoundEnabled()
+                            );
+
+                            // Persist the updated sound preference.
+                            GameSettings.save();
+
+                            System.out.println(
+                                    "Sound: " +
+                                            (config.isSoundEnabled() ? "On" : "Off")
+                            );
+
+                            event.consume();
+                        }
+
+                        // ---------------------------------------------
                         // DOWN = MANUAL FAST DROP
                         // ---------------------------------------------
 
@@ -498,6 +559,8 @@ public class PlayScreen {
                                     canMoveLeft(currentPiece)) {
 
                                 currentPiece.moveLeft();
+                                // Play movement sound when the piece moves successfully.
+                                AudioManager.playMoveTurnSound();
 
                                 drawFallingPiece(
                                         currentPiece,
@@ -519,6 +582,8 @@ public class PlayScreen {
                                     canMoveRight(currentPiece)) {
 
                                 currentPiece.moveRight();
+                                // Play movement sound when the piece moves successfully.
+                                AudioManager.playMoveTurnSound();
 
                                 drawFallingPiece(
                                         currentPiece,
@@ -543,6 +608,8 @@ public class PlayScreen {
                                         currentPiece
                                                 .getRotatedShape()
                                 );
+                                // Play rotation sound after a successful turn.
+                                AudioManager.playMoveTurnSound();
 
                                 drawFallingPiece(
                                         currentPiece,
@@ -654,6 +721,9 @@ public class PlayScreen {
         }
 
         if (rowsRemoved > 0) {
+
+            // Play the row-clear effect only when at least one row is removed.
+            AudioManager.playEraseLineSound();
 
             refreshBoardView();
         }
