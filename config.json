@@ -4,6 +4,6 @@
   "gameLevel" : 1,
   "musicEnabled" : true,
   "soundEnabled" : true,
-  "aiEnabled" : false,
+  "aiEnabled" : true,
   "extendedMode" : false
 }
