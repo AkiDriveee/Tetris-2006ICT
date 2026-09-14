@@ -464,6 +464,65 @@ public class PlayScreen {
                         }
 
                         // ---------------------------------------------
+                        // M = TOGGLE BACKGROUND MUSIC
+                        // ---------------------------------------------
+
+                        case M -> {
+
+                            /*
+                             * Toggle the shared music setting so the change is
+                             * applied immediately during gameplay and remains
+                             * synchronized with the Configuration screen.
+                             */
+                            GameConfig config = GameSettings.getConfig();
+
+                            config.setMusicEnabled(
+                                    !config.isMusicEnabled()
+                            );
+
+                            // Apply the updated music setting immediately.
+                            AudioManager.updateMusicState();
+
+                            // Save the preference so it persists after restart.
+                            GameSettings.save();
+
+                            System.out.println(
+                                    "Music: " +
+                                            (config.isMusicEnabled() ? "On" : "Off")
+                            );
+
+                            event.consume();
+                        }
+
+                        // ---------------------------------------------
+                        // S = TOGGLE SOUND EFFECTS
+                        // ---------------------------------------------
+
+                        case S -> {
+
+                            /*
+                             * Toggle the shared sound-effects setting.
+                             * Sound effects added to gameplay can read this
+                             * value before playing any effect.
+                             */
+                            GameConfig config = GameSettings.getConfig();
+
+                            config.setSoundEnabled(
+                                    !config.isSoundEnabled()
+                            );
+
+                            // Persist the updated sound preference.
+                            GameSettings.save();
+
+                            System.out.println(
+                                    "Sound: " +
+                                            (config.isSoundEnabled() ? "On" : "Off")
+                            );
+
+                            event.consume();
+                        }
+
+                        // ---------------------------------------------
                         // DOWN = MANUAL FAST DROP
                         // ---------------------------------------------
 
