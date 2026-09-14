@@ -32,6 +32,7 @@ public class PlayScreen {
     private static AnimationTimer timer;
     private static Tetromino currentPiece;
     private static Random random = new Random();
+    private static TetrominoFactory tetrominoFactory = new TetrominoFactory();
 
     // Pause / game-over state
     private static boolean paused = false;
@@ -787,16 +788,9 @@ public class PlayScreen {
                  c++) {
 
                 if (piece.getShape()[r][c] == 1) {
-
                     double x =
                             (piece.getCol() + c)
                                     * CELL_SIZE;
-
-                    /*
-                     * yOffset gives the intermediate
-                     * pixel positions required for smooth
-                     * automatic downward movement.
-                     */
                     double y =
                             (piece.getRow() + r)
                                     * CELL_SIZE
@@ -814,7 +808,6 @@ public class PlayScreen {
                     rect.setFill(
                             piece.getColor()
                     );
-
                     rect.setStroke(
                             Color.web("#101010")
                     );
@@ -860,25 +853,7 @@ public class PlayScreen {
 
     private static Tetromino spawnRandomPiece() {
 
-        int type =
-                random.nextInt(7);
-
-        return switch (type) {
-
-            case 0 -> new IPiece(0, 3);
-
-            case 1 -> new OPiece(0, 3);
-
-            case 2 -> new TPiece(0, 3);
-
-            case 3 -> new SPiece(0, 3);
-
-            case 4 -> new ZPiece(0, 3);
-
-            case 5 -> new JPiece(0, 3);
-
-            default -> new LPiece(0, 3);
-        };
+        return tetrominoFactory.createRandomPiece();
     }
 
     // -------------------------------------------------------------
