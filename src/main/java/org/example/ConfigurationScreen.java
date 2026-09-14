@@ -20,6 +20,9 @@ public final class ConfigurationScreen {
 
     public static void show(Stage stage) {
 
+        // Get the shared configuration values
+        GameConfig config = GameSettings.getConfig();
+
         Label title = new Label("CONFIGURATION");
         title.setStyle("""
                 -fx-font-size: 34px;
@@ -33,9 +36,24 @@ public final class ConfigurationScreen {
         settingsGrid.setAlignment(Pos.CENTER);
         settingsGrid.setPadding(new Insets(20));
 
-        Slider widthSlider = createIntegerSlider(5, 15, 10);
-        Slider heightSlider = createIntegerSlider(15, 30, 20);
-        Slider levelSlider = createIntegerSlider(1, 10, 1);
+        // Load current configuration values instead of hard-coded defaults
+        Slider widthSlider = createIntegerSlider(
+                5,
+                15,
+                config.getFieldWidth()
+        );
+
+        Slider heightSlider = createIntegerSlider(
+                15,
+                30,
+                config.getFieldHeight()
+        );
+
+        Slider levelSlider = createIntegerSlider(
+                1,
+                10,
+                config.getGameLevel()
+        );
 
         Label widthValue = createValueLabel((int) widthSlider.getValue());
         Label heightValue = createValueLabel((int) heightSlider.getValue());
@@ -58,17 +76,29 @@ public final class ConfigurationScreen {
         CheckBox aiCheckBox = new CheckBox();
         CheckBox extendedModeCheckBox = new CheckBox();
 
-        musicCheckBox.setSelected(true);
-        soundCheckBox.setSelected(true);
+        // Load the current saved settings
+        musicCheckBox.setSelected(config.isMusicEnabled());
+        soundCheckBox.setSelected(config.isSoundEnabled());
+        aiCheckBox.setSelected(config.isAiEnabled());
+        extendedModeCheckBox.setSelected(config.isExtendedMode());
+
+        AudioManager.updateMusicState();
 
         Label musicValue = createStatusLabel(musicCheckBox.isSelected());
         Label soundValue = createStatusLabel(soundCheckBox.isSelected());
         Label aiValue = createStatusLabel(aiCheckBox.isSelected());
         Label extendedValue = createStatusLabel(extendedModeCheckBox.isSelected());
 
-        musicCheckBox.selectedProperty().addListener((observable, oldValue, selected) ->
-                musicValue.setText(selected ? "On" : "Off")
-        );
+        musicCheckBox.selectedProperty().addListener((observable, oldValue, selected) -> {
+
+            musicValue.setText(selected ? "On" : "Off");
+
+            config.setMusicEnabled(selected);
+
+            GameSettings.save();
+
+            AudioManager.updateMusicState();
+        });
 
         soundCheckBox.selectedProperty().addListener((observable, oldValue, selected) ->
                 soundValue.setText(selected ? "On" : "Off")
@@ -149,7 +179,25 @@ public final class ConfigurationScreen {
                 -fx-padding: 10 20;
                 """);
 
-        backButton.setOnAction(event -> MainMenu.show(stage));
+        /*
+         * Save the selected configuration values
+         * before returning to the Main Menu.
+         */
+        backButton.setOnAction(event -> {
+
+            config.setFieldWidth((int) widthSlider.getValue());
+            config.setFieldHeight((int) heightSlider.getValue());
+            config.setGameLevel((int) levelSlider.getValue());
+
+            config.setMusicEnabled(musicCheckBox.isSelected());
+            config.setSoundEnabled(soundCheckBox.isSelected());
+            config.setAiEnabled(aiCheckBox.isSelected());
+            config.setExtendedMode(extendedModeCheckBox.isSelected());
+
+            GameSettings.save();
+
+            MainMenu.show(stage);
+        });
 
         VBox root = new VBox(
                 22,
@@ -183,7 +231,12 @@ public final class ConfigurationScreen {
             double maximum,
             double initialValue
     ) {
-        Slider slider = new Slider(minimum, maximum, initialValue);
+
+        Slider slider = new Slider(
+                minimum,
+                maximum,
+                initialValue
+        );
 
         slider.setShowTickLabels(true);
         slider.setShowTickMarks(true);
@@ -197,7 +250,10 @@ public final class ConfigurationScreen {
     }
 
     private static Label createValueLabel(int value) {
-        Label label = new Label(String.valueOf(value));
+
+        Label label = new Label(
+                String.valueOf(value)
+        );
 
         label.setStyle("""
                 -fx-font-size: 18px;
@@ -209,7 +265,10 @@ public final class ConfigurationScreen {
     }
 
     private static Label createStatusLabel(boolean selected) {
-        Label label = new Label(selected ? "On" : "Off");
+
+        Label label = new Label(
+                selected ? "On" : "Off"
+        );
 
         label.setStyle("""
                 -fx-font-size: 17px;
@@ -221,6 +280,7 @@ public final class ConfigurationScreen {
     }
 
     private static Label createSettingLabel(String text) {
+
         Label label = new Label(text);
 
         label.setStyle("""
@@ -239,9 +299,24 @@ public final class ConfigurationScreen {
             Slider slider,
             Label valueLabel
     ) {
-        grid.add(createSettingLabel(settingName), 0, row);
-        grid.add(slider, 1, row);
-        grid.add(valueLabel, 2, row);
+
+        grid.add(
+                createSettingLabel(settingName),
+                0,
+                row
+        );
+
+        grid.add(
+                slider,
+                1,
+                row
+        );
+
+        grid.add(
+                valueLabel,
+                2,
+                row
+        );
     }
 
     private static void addCheckBoxRow(
@@ -251,8 +326,23 @@ public final class ConfigurationScreen {
             CheckBox checkBox,
             Label statusLabel
     ) {
-        grid.add(createSettingLabel(settingName), 0, row);
-        grid.add(checkBox, 1, row);
-        grid.add(statusLabel, 2, row);
+
+        grid.add(
+                createSettingLabel(settingName),
+                0,
+                row
+        );
+
+        grid.add(
+                checkBox,
+                1,
+                row
+        );
+
+        grid.add(
+                statusLabel,
+                2,
+                row
+        );
     }
 }
