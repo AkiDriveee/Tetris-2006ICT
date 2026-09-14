@@ -38,6 +38,14 @@ public class PlayScreen {
     private static boolean paused = false;
     private static boolean gameOver = false;
 
+    //AI MODE
+    private static TetrisAI tetrisAI = new TetrisAI();
+    private static int aiTargetCol = 0;
+    private static int aiTargetRotation = 0;
+    private static int aiRotationsDone = 0;
+    private static boolean aiMoving = false;
+    private static long lastAiStepTime = 0;
+
     public static void show(Stage stage) {
 
         // Reset state whenever a new game starts.
@@ -174,6 +182,40 @@ public class PlayScreen {
             @Override
             public void handle(long now) {
 
+                if (aiMoving) {
+
+                    long delayNanos = 300_000_000; // 150 milliseconds between each AI step
+
+                    if (now - lastAiStepTime < delayNanos) {
+                        return; // not enough time has passed yet, wait
+                    }
+
+                    lastAiStepTime = now;
+
+                    if (aiRotationsDone < aiTargetRotation) {
+                        currentPiece.setShape(currentPiece.getRotatedShape());
+                        aiRotationsDone++;
+
+                        drawFallingPiece(currentPiece, pieceLayer);
+                        return;
+                    }
+
+                    if (currentPiece.getCol() < aiTargetCol) {
+                        currentPiece.moveRight();
+                        drawFallingPiece(currentPiece, pieceLayer);
+                        return;
+                    }
+
+                    if (currentPiece.getCol() > aiTargetCol) {
+                        currentPiece.moveLeft();
+                        drawFallingPiece(currentPiece, pieceLayer);
+                        return;
+                    }
+
+                    aiMoving = false;
+                }
+
+
                 // Completely freeze automatic movement while paused.
                 if (paused || gameOver) {
                     return;
@@ -188,7 +230,9 @@ public class PlayScreen {
                      * This provides the smooth normal downward movement
                      * required by the specification.
                      */
-                    currentPiece.addYOffset(1);
+
+                    int fallSpeed = GameSettings.getConfig().isAiEnabled() ? 5 : 1;
+                    currentPiece.addYOffset(fallSpeed);
 
                     if (currentPiece.getYOffset() >= CELL_SIZE) {
 
@@ -236,7 +280,41 @@ public class PlayScreen {
 
                         currentPiece = nextPiece;
 
-                        drawFallingPiece(
+                        if (GameSettings.getConfig().isAiEnabled()) {
+                            int[] move = tetrisAI.findBestMove(board, currentPiece);
+                            aiTargetCol = move[0];
+                            aiTargetRotation = move[1];
+                            aiRotationsDone = 0;
+                            aiMoving = true;
+
+                            System.out.println("AI target col: " + aiTargetCol + ", rotation: " + aiTargetRotation);
+                        }
+
+                       /* if (GameSettings.getConfig().isAiEnabled()) {
+
+                            int[] move = tetrisAI.findBestMove(board, currentPiece);
+
+                            int targetCol = move[0];
+                            int targetRotation = move[1];
+
+                            for (int i = 0; i < targetRotation; i++) {
+                                currentPiece.setShape(currentPiece.getRotatedShape());
+                            }
+
+                            while (currentPiece.getCol() < targetCol) {
+                                currentPiece.moveRight();
+                            }
+                            while (currentPiece.getCol() > targetCol) {
+                                currentPiece.moveLeft();
+                            }
+
+                            System.out.println("AI target col: " + targetCol + ", rotation: " + targetRotation);
+                        }*/
+
+
+
+
+                            drawFallingPiece(
                                 currentPiece,
                                 pieceLayer
                         );
