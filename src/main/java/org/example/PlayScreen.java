@@ -15,19 +15,33 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.animation.AnimationTimer;
 
-import org.example.pieces.*;
-
 import java.util.Optional;
 import java.util.Random;
 
 public class PlayScreen {
 
-    private static final int ROWS = 20;
-    private static final int COLS = 10;
+    // ---------------------------------------------------------
+// BOARD DIMENSIONS
+// ---------------------------------------------------------
+
+    /*
+     * Board width and height are loaded from the shared
+     * configuration whenever a new game starts.
+     *
+     * They are not final because the player can change the
+     * field size from the Configuration screen.
+     */
+    private static int ROWS;
+    private static int COLS;
+
     private static final int CELL_SIZE = 29;
 
-    private static Color[][] board = new Color[ROWS][COLS];
-    private static Region[][] cellViews = new Region[ROWS][COLS];
+    /*
+     * These arrays are created when PlayScreen opens so their
+     * dimensions always match the configured field size.
+     */
+    private static Color[][] board;
+    private static Region[][] cellViews;
 
     private static AnimationTimer timer;
     private static Tetromino currentPiece;
@@ -52,8 +66,23 @@ public class PlayScreen {
         paused = false;
         gameOver = false;
 
-        BorderPane root = new BorderPane();
+        /*
+         * Load the selected board dimensions from the shared
+         * configuration each time a new game is started.
+         */
+        GameConfig config = GameSettings.getConfig();
 
+        COLS = config.getFieldWidth();
+        ROWS = config.getFieldHeight();
+
+        /*
+         * Recreate the board arrays so they exactly match
+         * the configured width and height.
+         */
+        board = new Color[ROWS][COLS];
+        cellViews = new Region[ROWS][COLS];
+
+        BorderPane root = new BorderPane();
         // ---------------------------------------------------------
         // BUILD EMPTY 10 x 20 BOARD
         // ---------------------------------------------------------
@@ -193,25 +222,72 @@ public class PlayScreen {
                     lastAiStepTime = now;
 
                     if (aiRotationsDone < aiTargetRotation) {
-                        currentPiece.setShape(currentPiece.getRotatedShape());
-                        aiRotationsDone++;
 
-                        drawFallingPiece(currentPiece, pieceLayer);
-                        return;
+                        /*
+                         * Apply the AI rotation only when the rotated tetromino
+                         * remains inside the configured board and does not
+                         * collide with an occupied cell.
+                         */
+                        if (canRotate(currentPiece)) {
+                            currentPiece.setShape(
+                                    currentPiece.getRotatedShape()
+                            );
+
+                            aiRotationsDone++;
+
+                            // Play the sound only after a successful AI rotation.
+                            AudioManager.playMoveTurnSound();
+
+                            drawFallingPiece(
+                                    currentPiece,
+                                    pieceLayer
+                            );
+
+                            return;
+                        }
+
+                        /*
+                         * The requested rotation cannot be performed safely.
+                         * Skip the remaining rotations and continue positioning.
+                         */
+                        aiRotationsDone = aiTargetRotation;
                     }
 
                     if (currentPiece.getCol() < aiTargetCol) {
-                        currentPiece.moveRight();
-                        drawFallingPiece(currentPiece, pieceLayer);
-                        return;
+
+                        /*
+                         * Use the same boundary/collision check as manual movement
+                         * so the AI cannot move a tetromino outside the game board.
+                         */
+                        if (canMoveRight(currentPiece)) {
+                            currentPiece.moveRight();
+
+                            // Play the movement sound after a successful AI move.
+                            AudioManager.playMoveTurnSound();
+
+                            drawFallingPiece(currentPiece, pieceLayer);
+                            return;
+                        }
+
                     }
 
                     if (currentPiece.getCol() > aiTargetCol) {
-                        currentPiece.moveLeft();
-                        drawFallingPiece(currentPiece, pieceLayer);
-                        return;
-                    }
 
+                        /*
+                         * Use the same boundary/collision check as manual movement
+                         * so the AI cannot move a tetromino outside the game board.
+                         */
+                        if (canMoveLeft(currentPiece)) {
+                            currentPiece.moveLeft();
+
+                            // Play the movement sound after a successful AI move.
+                            AudioManager.playMoveTurnSound();
+
+                            drawFallingPiece(currentPiece, pieceLayer);
+                            return;
+                        }
+                    }
+                    // Finish AI positioning once no further safe horizontal move is required.
                     aiMoving = false;
                 }
 
@@ -555,10 +631,10 @@ public class PlayScreen {
                              * applied immediately during gameplay and remains
                              * synchronized with the Configuration screen.
                              */
-                            GameConfig config = GameSettings.getConfig();
+                            GameConfig musicConfig = GameSettings.getConfig();
 
-                            config.setMusicEnabled(
-                                    !config.isMusicEnabled()
+                            musicConfig.setMusicEnabled(
+                                    !musicConfig.isMusicEnabled()
                             );
 
                             // Apply the updated music setting immediately.
@@ -569,15 +645,15 @@ public class PlayScreen {
 
                             System.out.println(
                                     "Music: " +
-                                            (config.isMusicEnabled() ? "On" : "Off")
+                                            (musicConfig.isMusicEnabled() ? "On" : "Off")
                             );
 
                             event.consume();
                         }
 
-                        // ---------------------------------------------
-                        // S = TOGGLE SOUND EFFECTS
-                        // ---------------------------------------------
+// ---------------------------------------------
+// S = TOGGLE SOUND EFFECTS
+// ---------------------------------------------
 
                         case S -> {
 
@@ -586,10 +662,10 @@ public class PlayScreen {
                              * Sound effects added to gameplay can read this
                              * value before playing any effect.
                              */
-                            GameConfig config = GameSettings.getConfig();
+                            GameConfig soundConfig = GameSettings.getConfig();
 
-                            config.setSoundEnabled(
-                                    !config.isSoundEnabled()
+                            soundConfig.setSoundEnabled(
+                                    !soundConfig.isSoundEnabled()
                             );
 
                             // Persist the updated sound preference.
@@ -597,12 +673,11 @@ public class PlayScreen {
 
                             System.out.println(
                                     "Sound: " +
-                                            (config.isSoundEnabled() ? "On" : "Off")
+                                            (soundConfig.isSoundEnabled() ? "On" : "Off")
                             );
 
                             event.consume();
                         }
-
                         // ---------------------------------------------
                         // DOWN = MANUAL FAST DROP
                         // ---------------------------------------------
