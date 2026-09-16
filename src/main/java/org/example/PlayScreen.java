@@ -2,6 +2,8 @@ package org.example;
 
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.geometry.Rectangle2D;
+import javafx.stage.Screen;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
@@ -388,9 +390,7 @@ public class PlayScreen {
                         }*/
 
 
-
-
-                            drawFallingPiece(
+                        drawFallingPiece(
                                 currentPiece,
                                 pieceLayer
                         );
@@ -558,14 +558,78 @@ public class PlayScreen {
         root.setBottom(bottom);
 
         // ---------------------------------------------------------
-        // SCENE
-        // ---------------------------------------------------------
+// DYNAMIC GAME WINDOW
+// ---------------------------------------------------------
+
+        /*
+         * Get the usable screen dimensions so the gameplay window
+         * does not extend beyond the user's visible screen area.
+         */
+        Rectangle2D screenBounds =
+                Screen.getPrimary().getVisualBounds();
+
+        double boardWidth =
+                COLS * CELL_SIZE;
+
+        double boardHeight =
+                ROWS * CELL_SIZE;
+
+        /*
+         * Reserve vertical space for the Back button and other
+         * layout spacing. If a configured board is too tall to fit,
+         * visually scale the board while keeping the original
+         * CELL_SIZE calculations used by the gameplay logic.
+         */
+        double availableBoardHeight =
+                screenBounds.getHeight() - 170;
+
+        double boardScale =
+                Math.min(
+                        1.0,
+                        availableBoardHeight / boardHeight
+                );
+
+        boardStack.setScaleX(boardScale);
+        boardStack.setScaleY(boardScale);
+
+        /*
+         * Calculate the visible dimensions of the board after
+         * any required scaling has been applied.
+         */
+        double displayedBoardWidth =
+                boardWidth * boardScale;
+
+        double displayedBoardHeight =
+                boardHeight * boardScale;
+
+        /*
+         * Automatically size the gameplay window according to
+         * the configured field dimensions while keeping it within
+         * the usable screen area.
+         */
+        double windowWidth =
+                Math.min(
+                        screenBounds.getWidth() - 80,
+                        Math.max(
+                                500,
+                                displayedBoardWidth + 180
+                        )
+                );
+
+        double windowHeight =
+                Math.min(
+                        screenBounds.getHeight() - 40,
+                        Math.max(
+                                600,
+                                displayedBoardHeight + 120
+                        )
+                );
 
         Scene scene =
                 new Scene(
                         root,
-                        1000,
-                        700
+                        windowWidth,
+                        windowHeight
                 );
 
         stage.setTitle(
@@ -574,6 +638,12 @@ public class PlayScreen {
 
         stage.setScene(scene);
 
+        /*
+         * Apply the calculated size and centre the gameplay
+         * window after the configured dimensions are applied.
+         */
+        stage.sizeToScene();
+        stage.centerOnScreen();
         // ---------------------------------------------------------
         // KEYBOARD CONTROLS
         // ---------------------------------------------------------
@@ -1071,17 +1141,21 @@ public class PlayScreen {
     }
 
     // -------------------------------------------------------------
-    // RANDOM TETROMINO
-    // -------------------------------------------------------------
+// RANDOM TETROMINO
+// -------------------------------------------------------------
 
     private static Tetromino spawnRandomPiece() {
 
-        return tetrominoFactory.createRandomPiece();
+        /*
+         * Pass the configured board width to the factory so the
+         * tetromino spawn position can adapt to dynamic field sizes.
+         */
+        return tetrominoFactory.createRandomPiece(COLS);
     }
 
     // -------------------------------------------------------------
-    // CAN MOVE DOWN?
-    // -------------------------------------------------------------
+// CAN MOVE DOWN?
+// -------------------------------------------------------------
 
     private static boolean canMoveDown(
             Tetromino piece
@@ -1106,8 +1180,16 @@ public class PlayScreen {
                             piece.getCol()
                                     + c;
 
-                    // Hit floor.
-                    if (boardRow >= ROWS) {
+                    /*
+                     * Check all configured board boundaries before
+                     * accessing the board array. This keeps movement
+                     * safe when smaller dynamic field sizes are used.
+                     */
+                    if (boardRow < 0 ||
+                            boardRow >= ROWS ||
+                            boardCol < 0 ||
+                            boardCol >= COLS) {
+
                         return false;
                     }
 
@@ -1259,8 +1341,8 @@ public class PlayScreen {
     }
 
     // -------------------------------------------------------------
-    // CAN NEW PIECE SPAWN?
-    // -------------------------------------------------------------
+// CAN NEW PIECE SPAWN?
+// -------------------------------------------------------------
 
     private static boolean canSpawn(
             Tetromino piece
@@ -1282,6 +1364,19 @@ public class PlayScreen {
                     int boardCol =
                             piece.getCol() + c;
 
+                    /*
+                     * Check the configured board boundaries before
+                     * accessing the board array. This prevents pieces
+                     * from spawning outside smaller dynamic fields.
+                     */
+                    if (boardRow < 0 ||
+                            boardRow >= ROWS ||
+                            boardCol < 0 ||
+                            boardCol >= COLS) {
+
+                        return false;
+                    }
+
                     if (board[boardRow][boardCol]
                             != null) {
 
@@ -1293,4 +1388,5 @@ public class PlayScreen {
 
         return true;
     }
+
 }
