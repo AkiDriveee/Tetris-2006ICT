@@ -16,6 +16,9 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.animation.AnimationTimer;
+import org.example.pieces.Tetromino;
+import org.example.pieces.TetrominoFactory;
+import org.example.server.TetrisServerConnection;
 
 import java.util.Optional;
 import java.util.Random;
@@ -61,6 +64,9 @@ public class PlayScreen {
     private static int aiRotationsDone = 0;
     private static boolean aiMoving = false;
     private static long lastAiStepTime = 0;
+
+
+    private static Tetromino upcomingPiece;
 
     public static void show(Stage stage) {
 
@@ -128,6 +134,7 @@ public class PlayScreen {
         // ---------------------------------------------------------
 
         currentPiece = spawnRandomPiece();
+        upcomingPiece = spawnRandomPiece();
 
         // Falling pieces are drawn on a separate pixel-based layer.
         // This allows smooth movement between grid rows.
@@ -215,7 +222,7 @@ public class PlayScreen {
 
                 if (aiMoving) {
 
-                    long delayNanos = 300_000_000; // 150 milliseconds between each AI step
+                    long delayNanos = 300_000_000;
 
                     if (now - lastAiStepTime < delayNanos) {
                         return; // not enough time has passed yet, wait
@@ -351,12 +358,12 @@ public class PlayScreen {
                     printBoard();
 
                     // Create the next piece.
-                    Tetromino nextPiece =
-                            spawnRandomPiece();
+                    Tetromino nextPiece = upcomingPiece;
 
                     if (canSpawn(nextPiece)) {
 
                         currentPiece = nextPiece;
+                        upcomingPiece = spawnRandomPiece();
 
                         if (GameSettings.getConfig().isAiEnabled()) {
                             int[] move = tetrisAI.findBestMove(board, currentPiece);
@@ -368,26 +375,17 @@ public class PlayScreen {
                             System.out.println("AI target col: " + aiTargetCol + ", rotation: " + aiTargetRotation);
                         }
 
-                       /* if (GameSettings.getConfig().isAiEnabled()) {
+                        else if (GameSettings.getConfig().getPlayerOneType() == PlayerType.EXTERNAL) {
+                            int[] move = TetrisServerConnection.getInstance().getServerMove(board, currentPiece, nextPiece);
+                            aiTargetCol = move[0];
+                            aiTargetRotation = move[1];
+                            aiRotationsDone = 0;
+                            aiMoving = true;
 
-                            int[] move = tetrisAI.findBestMove(board, currentPiece);
+                            System.out.println("Server target col: " + aiTargetCol + ", rotation: " + aiTargetRotation);
+                        }
 
-                            int targetCol = move[0];
-                            int targetRotation = move[1];
 
-                            for (int i = 0; i < targetRotation; i++) {
-                                currentPiece.setShape(currentPiece.getRotatedShape());
-                            }
-
-                            while (currentPiece.getCol() < targetCol) {
-                                currentPiece.moveRight();
-                            }
-                            while (currentPiece.getCol() > targetCol) {
-                                currentPiece.moveLeft();
-                            }
-
-                            System.out.println("AI target col: " + targetCol + ", rotation: " + targetRotation);
-                        }*/
 
 
                         drawFallingPiece(
@@ -608,22 +606,18 @@ public class PlayScreen {
          * the usable screen area.
          */
         double windowWidth =
-                Math.min(
-                        screenBounds.getWidth() - 80,
-                        Math.max(
-                                500,
-                                displayedBoardWidth + 180
-                        )
-                );
+                Math.clamp(
+                        displayedBoardWidth + 180
+                        ,
+                        500,
+                        screenBounds.getWidth() - 80);
 
         double windowHeight =
-                Math.min(
-                        screenBounds.getHeight() - 40,
-                        Math.max(
-                                600,
-                                displayedBoardHeight + 120
-                        )
-                );
+                Math.clamp(
+                        displayedBoardHeight + 120
+                        ,
+                        600,
+                        screenBounds.getHeight() - 40);
 
         Scene scene =
                 new Scene(
@@ -756,6 +750,7 @@ public class PlayScreen {
 
                             if (!paused &&
                                     !gameOver &&
+                                    !isAutomatedMode() &&
                                     canMoveDown(currentPiece)) {
 
                                 currentPiece.moveDown();
@@ -779,6 +774,7 @@ public class PlayScreen {
 
                             if (!paused &&
                                     !gameOver &&
+                                    !isAutomatedMode() &&
                                     canMoveLeft(currentPiece)) {
 
                                 currentPiece.moveLeft();
@@ -802,6 +798,7 @@ public class PlayScreen {
 
                             if (!paused &&
                                     !gameOver &&
+                                    !isAutomatedMode() &&
                                     canMoveRight(currentPiece)) {
 
                                 currentPiece.moveRight();
@@ -825,6 +822,7 @@ public class PlayScreen {
 
                             if (!paused &&
                                     !gameOver &&
+                                    !isAutomatedMode() &&
                                     canRotate(currentPiece)) {
 
                                 currentPiece.setShape(
@@ -850,6 +848,12 @@ public class PlayScreen {
         );
 
         stage.show();
+    }
+
+    //IF AI / ENABLED is on, key press disabled
+    private static boolean isAutomatedMode() {
+        return GameSettings.getConfig().isAiEnabled()
+                || GameSettings.getConfig().getPlayerOneType() == PlayerType.EXTERNAL;
     }
 
     // -------------------------------------------------------------
@@ -1339,6 +1343,7 @@ public class PlayScreen {
 
         return true;
     }
+
 
     // -------------------------------------------------------------
 // CAN NEW PIECE SPAWN?

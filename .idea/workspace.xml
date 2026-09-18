@@ -22,6 +22,11 @@
     </option>
   </component>
   <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="main" />
+      </map>
+    </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="NextEditCompletionFeaturesState">
@@ -30,61 +35,61 @@
       <entry key="MS500" value="1.0" />
       <entry key="S2" value="1.0" />
       <entry key="S5" value="1.0" />
-      <entry key="S10" value="1.0000000000000173" />
-      <entry key="S30" value="1.0000258782592275" />
-      <entry key="S60" value="1.0050925355226632" />
-      <entry key="M2" value="1.0852742909598199" />
-      <entry key="M5" value="3.7862818081712817" />
-      <entry key="M10" value="20.16118526605754" />
-      <entry key="M15" value="41.96987724904734" />
-      <entry key="M30" value="102.90290172962642" />
-      <entry key="H1" value="186.70795453346386" />
-      <entry key="H2" value="269.0470811421719" />
-      <entry key="H4" value="329.9457298136696" />
-      <entry key="D1" value="395.78224465820045" />
-      <entry key="W1" value="408.7793892692453" />
+      <entry key="S10" value="1.000000000014899" />
+      <entry key="S30" value="1.0002464040294181" />
+      <entry key="S60" value="1.01696647936792" />
+      <entry key="M2" value="1.2345206259154486" />
+      <entry key="M5" value="3.803522123629797" />
+      <entry key="M10" value="13.954535202790911" />
+      <entry key="M15" value="30.42897609338441" />
+      <entry key="M30" value="91.99685748963162" />
+      <entry key="H1" value="202.53411452398745" />
+      <entry key="H2" value="335.4865714977497" />
+      <entry key="H4" value="448.2003922225187" />
+      <entry key="D1" value="583.0015369447123" />
+      <entry key="W1" value="611.1426450194062" />
     </decayedCancelled>
     <decayedSelected>
       <entry key="MS100" value="0.0" />
       <entry key="MS500" value="0.0" />
-      <entry key="S2" value="3.0879777183649882E-109" />
-      <entry key="S5" value="3.943389386274494E-44" />
-      <entry key="S10" value="1.9857969146603325E-22" />
-      <entry key="S30" value="5.8341592193023856E-8" />
-      <entry key="S60" value="2.4154188489909317E-4" />
-      <entry key="M2" value="0.015593601729977242" />
-      <entry key="M5" value="0.24785591898188658" />
-      <entry key="M10" value="1.2872972982452233" />
-      <entry key="M15" value="2.7278070337690523" />
-      <entry key="M30" value="6.403559384073578" />
-      <entry key="H1" value="10.36508403352063" />
-      <entry key="H2" value="13.50198442112982" />
-      <entry key="H4" value="15.537765472731868" />
-      <entry key="D1" value="17.55522775550274" />
-      <entry key="W1" value="17.935546582196455" />
+      <entry key="S2" value="5.072941021924763E-263" />
+      <entry key="S5" value="1.5171820936229373E-105" />
+      <entry key="S10" value="6.345753705073199E-53" />
+      <entry key="S30" value="1.2734293435789569E-17" />
+      <entry key="S60" value="9.743508176065703E-9" />
+      <entry key="M2" value="2.7666624814866347E-4" />
+      <entry key="M5" value="0.1322507114764271" />
+      <entry key="M10" value="1.0674416643518911" />
+      <entry key="M15" value="2.2432057748729592" />
+      <entry key="M30" value="5.626314897989768" />
+      <entry key="H1" value="10.867427980595867" />
+      <entry key="H2" value="16.508783885735056" />
+      <entry key="H4" value="20.907383994252474" />
+      <entry key="D1" value="25.837388964934345" />
+      <entry key="W1" value="26.82983813192499" />
     </decayedSelected>
     <decayedShown>
-      <entry key="MS100" value="0.9075191553171609" />
-      <entry key="MS500" value="0.9807790039885513" />
-      <entry key="S2" value="0.9951597218200828" />
-      <entry key="S5" value="0.9980610700524115" />
-      <entry key="S10" value="0.9990300646389207" />
-      <entry key="S30" value="0.9997025019963887" />
-      <entry key="S60" value="1.0051675712854988" />
-      <entry key="M2" value="1.100642356929741" />
-      <entry key="M5" value="4.030947473265023" />
-      <entry key="M10" value="21.436474152256757" />
-      <entry key="M15" value="44.68020962109625" />
-      <entry key="M30" value="109.28600869280851" />
-      <entry key="H1" value="197.0566151261503" />
-      <entry key="H2" value="282.5384065689962" />
-      <entry key="H4" value="345.4773689887692" />
-      <entry key="D1" value="413.3363191463133" />
-      <entry key="W1" value="426.7147675266759" />
+      <entry key="MS100" value="0.02720470510300388" />
+      <entry key="MS500" value="0.4863274737061427" />
+      <entry key="S2" value="0.8350879194283694" />
+      <entry key="S5" value="0.9304496577030154" />
+      <entry key="S10" value="0.9645981845964497" />
+      <entry key="S30" value="0.9882885687843277" />
+      <entry key="S60" value="1.0104659273283876" />
+      <entry key="M2" value="1.2291557914418167" />
+      <entry key="M5" value="3.9273531316998023" />
+      <entry key="M10" value="15.010990362952517" />
+      <entry key="M15" value="32.660173500480724" />
+      <entry key="M30" value="97.60949363351234" />
+      <entry key="H1" value="213.38771733033172" />
+      <entry key="H2" value="351.9844169502291" />
+      <entry key="H4" value="469.1006931978027" />
+      <entry key="D1" value="608.8374391706309" />
+      <entry key="W1" value="637.9722618846876" />
     </decayedShown>
   </component>
   <component name="ProblemsViewState">
-    <option name="selectedTabId" value="AISelfReview" />
+    <option name="selectedTabId" value="CurrentFile" />
   </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 0,
@@ -102,7 +107,7 @@
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
     "codeWithMe.voiceChat.enabledByDefault": "false",
     "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
-    "git-widget-placeholder": "factory-pattern",
+    "git-widget-placeholder": "BugFixes",
     "junie.onboarding.icon.badge.shown": "true",
     "kotlin-language-version-configured": "true",
     "node.js.detected.package.eslint": "true",
