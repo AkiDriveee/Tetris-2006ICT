@@ -1,7 +1,6 @@
 package org.example.pieces;
 
 import javafx.scene.paint.Color;
-import org.example.Tetromino;
 
 public class ZPiece extends Tetromino {
 

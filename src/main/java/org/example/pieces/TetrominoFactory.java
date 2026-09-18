@@ -1,6 +1,4 @@
-package org.example;
-
-import org.example.pieces.*;
+package org.example.pieces;
 
 import java.util.Random;
 

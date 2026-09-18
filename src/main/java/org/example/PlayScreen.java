@@ -16,6 +16,8 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.animation.AnimationTimer;
+import org.example.pieces.Tetromino;
+import org.example.pieces.TetrominoFactory;
 
 import java.util.Optional;
 import java.util.Random;
@@ -608,22 +610,18 @@ public class PlayScreen {
          * the usable screen area.
          */
         double windowWidth =
-                Math.min(
-                        screenBounds.getWidth() - 80,
-                        Math.max(
-                                500,
-                                displayedBoardWidth + 180
-                        )
-                );
+                Math.clamp(
+                        displayedBoardWidth + 180
+                        ,
+                        500,
+                        screenBounds.getWidth() - 80);
 
         double windowHeight =
-                Math.min(
-                        screenBounds.getHeight() - 40,
-                        Math.max(
-                                600,
-                                displayedBoardHeight + 120
-                        )
-                );
+                Math.clamp(
+                        displayedBoardHeight + 120
+                        ,
+                        600,
+                        screenBounds.getHeight() - 40);
 
         Scene scene =
                 new Scene(
