@@ -16,6 +16,7 @@ import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.animation.AnimationTimer;
 import org.example.*;
+import org.example.pieces.Tetromino;
 
 import java.util.ArrayList;
 import java.util.List;

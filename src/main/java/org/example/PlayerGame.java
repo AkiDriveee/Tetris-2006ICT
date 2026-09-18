@@ -8,7 +8,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import org.example.PlayerType;
-import org.example.Tetromino;
+import org.example.pieces.Tetromino;
 
 /*
  * Represents the independent game state for one Tetris player.
@@ -753,4 +753,3 @@ public class PlayerGame {
         );
     }
 }
-
