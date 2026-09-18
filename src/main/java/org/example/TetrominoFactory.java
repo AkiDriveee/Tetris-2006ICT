@@ -14,8 +14,7 @@ public class TetrominoFactory {
      * default Tetris board width.
      *
      * Keeping this method preserves compatibility with
-     * any existing code that still calls createRandomPiece()
-     * without supplying a board width.
+     * existing single-player code.
      */
     public Tetromino createRandomPiece() {
 
@@ -23,24 +22,56 @@ public class TetrominoFactory {
     }
 
     /*
-     * Create a random tetromino and calculate its starting
-     * column from the configured board width.
+     * Create a random tetromino for the supplied board width.
      *
-     * This allows pieces to spawn safely on dynamic field
-     * sizes, including smaller boards such as width 5.
+     * The random type is generated separately so Extended Mode
+     * can later reuse the same type for both players.
      */
     public Tetromino createRandomPiece(
             int boardWidth
     ) {
 
-        int type =
-                random.nextInt(7);
+        TetrominoType type =
+                createRandomType();
+
+        return createPiece(
+                type,
+                boardWidth
+        );
+    }
+
+    /*
+     * Generates one of the seven standard tetromino types.
+     *
+     * Extended Mode can call this once and then create an
+     * independent piece of that same type for each player.
+     */
+    public TetrominoType createRandomType() {
+
+        TetrominoType[] types =
+                TetrominoType.values();
+
+        return types[
+                random.nextInt(types.length)
+                ];
+    }
+
+    /*
+     * Creates a new tetromino instance of a specific type.
+     *
+     * Each call returns a separate object. Therefore two players
+     * can receive the same tetromino type and sequence without
+     * sharing movement, rotation, row, column, or offset state.
+     */
+    public Tetromino createPiece(
+            TetrominoType type,
+            int boardWidth
+    ) {
 
         /*
          * Tetromino shape matrices can occupy up to four
-         * columns. Positioning from this column keeps the
-         * initial piece near the centre while preventing
-         * the spawn position from assuming a 10-column board.
+         * columns. This keeps the initial piece near the centre
+         * and also supports dynamically configured board widths.
          */
         int startCol =
                 Math.max(
@@ -50,25 +81,25 @@ public class TetrominoFactory {
 
         return switch (type) {
 
-            case 0 ->
+            case I ->
                     new IPiece(0, startCol);
 
-            case 1 ->
+            case O ->
                     new OPiece(0, startCol);
 
-            case 2 ->
+            case T ->
                     new TPiece(0, startCol);
 
-            case 3 ->
+            case S ->
                     new SPiece(0, startCol);
 
-            case 4 ->
+            case Z ->
                     new ZPiece(0, startCol);
 
-            case 5 ->
+            case J ->
                     new JPiece(0, startCol);
 
-            default ->
+            case L ->
                     new LPiece(0, startCol);
         };
     }
