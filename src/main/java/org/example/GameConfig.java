@@ -9,6 +9,8 @@ public class GameConfig {
     private boolean soundEnabled;
     private boolean aiEnabled;
     private boolean extendedMode;
+    private PlayerType playerOneType;
+    private PlayerType playerTwoType;
 
     public GameConfig() {
         this.fieldWidth = 10;
@@ -18,6 +20,8 @@ public class GameConfig {
         this.soundEnabled = true;
         this.aiEnabled = false;
         this.extendedMode = false;
+        this.playerOneType = PlayerType.HUMAN;
+        this.playerTwoType = PlayerType.HUMAN;
     }
 
     public int getFieldWidth() {
@@ -74,5 +78,25 @@ public class GameConfig {
 
     public void setExtendedMode(boolean extendedMode) {
         this.extendedMode = extendedMode;
+    }
+
+    public PlayerType getPlayerOneType() {
+        return playerOneType;
+    }
+
+    public void setPlayerOneType(
+            PlayerType playerOneType
+    ) {
+        this.playerOneType = playerOneType;
+    }
+
+    public PlayerType getPlayerTwoType() {
+        return playerTwoType;
+    }
+
+    public void setPlayerTwoType(
+            PlayerType playerTwoType
+    ) {
+        this.playerTwoType = playerTwoType;
     }
 }

@@ -10,7 +10,10 @@ import javafx.scene.control.Slider;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.scene.control.RadioButton;
+import javafx.scene.control.ToggleGroup;
 import javafx.stage.Stage;
+
 
 public final class ConfigurationScreen {
 
@@ -73,20 +76,98 @@ public final class ConfigurationScreen {
 
         CheckBox musicCheckBox = new CheckBox();
         CheckBox soundCheckBox = new CheckBox();
-        CheckBox aiCheckBox = new CheckBox();
         CheckBox extendedModeCheckBox = new CheckBox();
+
+        // ---------------------------------------------------------
+// PLAYER TYPE SELECTION
+// ---------------------------------------------------------
+
+        /*
+         * Each player can be controlled by a Human, AI, or
+         * External controller. ToggleGroup ensures that only
+         * one controller type can be selected for each player.
+         */
+        ToggleGroup playerOneGroup = new ToggleGroup();
+
+        RadioButton playerOneHuman =
+                new RadioButton("Human");
+
+        RadioButton playerOneAI =
+                new RadioButton("AI");
+
+        RadioButton playerOneExternal =
+                new RadioButton("External");
+
+        playerOneHuman.setToggleGroup(playerOneGroup);
+        playerOneAI.setToggleGroup(playerOneGroup);
+        playerOneExternal.setToggleGroup(playerOneGroup);
+
+
+        ToggleGroup playerTwoGroup = new ToggleGroup();
+
+        RadioButton playerTwoHuman =
+                new RadioButton("Human");
+
+        RadioButton playerTwoAI =
+                new RadioButton("AI");
+
+        RadioButton playerTwoExternal =
+                new RadioButton("External");
+
+        playerTwoHuman.setToggleGroup(playerTwoGroup);
+        playerTwoAI.setToggleGroup(playerTwoGroup);
+        playerTwoExternal.setToggleGroup(playerTwoGroup);
+
+        /*
+         * Keep the radio-button text visible against the
+         * dark Configuration screen background.
+         */
+        String playerTypeStyle =
+                "-fx-text-fill: white;" +
+                        "-fx-font-size: 15px;";
+
+        playerOneHuman.setStyle(playerTypeStyle);
+        playerOneAI.setStyle(playerTypeStyle);
+        playerOneExternal.setStyle(playerTypeStyle);
+
+        playerTwoHuman.setStyle(playerTypeStyle);
+        playerTwoAI.setStyle(playerTypeStyle);
+        playerTwoExternal.setStyle(playerTypeStyle);
 
         // Load the current saved settings
         musicCheckBox.setSelected(config.isMusicEnabled());
         soundCheckBox.setSelected(config.isSoundEnabled());
-        aiCheckBox.setSelected(config.isAiEnabled());
         extendedModeCheckBox.setSelected(config.isExtendedMode());
+        /*
+         * Restore the saved controller type for each player.
+         */
+        switch (config.getPlayerOneType()) {
 
+            case HUMAN ->
+                    playerOneHuman.setSelected(true);
+
+            case AI ->
+                    playerOneAI.setSelected(true);
+
+            case EXTERNAL ->
+                    playerOneExternal.setSelected(true);
+        }
+
+        switch (config.getPlayerTwoType()) {
+
+            case HUMAN ->
+                    playerTwoHuman.setSelected(true);
+
+            case AI ->
+                    playerTwoAI.setSelected(true);
+
+            case EXTERNAL ->
+                    playerTwoExternal.setSelected(true);
+        }
         AudioManager.updateMusicState();
 
         Label musicValue = createStatusLabel(musicCheckBox.isSelected());
         Label soundValue = createStatusLabel(soundCheckBox.isSelected());
-        Label aiValue = createStatusLabel(aiCheckBox.isSelected());
         Label extendedValue = createStatusLabel(extendedModeCheckBox.isSelected());
 
         musicCheckBox.selectedProperty().addListener((observable, oldValue, selected) -> {
@@ -102,10 +183,6 @@ public final class ConfigurationScreen {
 
         soundCheckBox.selectedProperty().addListener((observable, oldValue, selected) ->
                 soundValue.setText(selected ? "On" : "Off")
-        );
-
-        aiCheckBox.selectedProperty().addListener((observable, oldValue, selected) ->
-                aiValue.setText(selected ? "On" : "Off")
         );
 
         extendedModeCheckBox.selectedProperty().addListener((observable, oldValue, selected) ->
@@ -152,20 +229,78 @@ public final class ConfigurationScreen {
                 soundValue
         );
 
-        addCheckBoxRow(
-                settingsGrid,
-                5,
-                "AI Play:",
-                aiCheckBox,
-                aiValue
-        );
 
         addCheckBoxRow(
                 settingsGrid,
-                6,
+                5,
                 "Extended Mode:",
                 extendedModeCheckBox,
                 extendedValue
+        );
+
+        // ---------------------------------------------------------
+// PLAYER TYPE ROWS
+// ---------------------------------------------------------
+
+        HBox playerOneOptions =
+                new HBox(
+                        20,
+                        playerOneHuman,
+                        playerOneAI,
+                        playerOneExternal
+                );
+
+        playerOneOptions.setAlignment(
+                Pos.CENTER_LEFT
+        );
+
+        HBox playerTwoOptions =
+                new HBox(
+                        20,
+                        playerTwoHuman,
+                        playerTwoAI,
+                        playerTwoExternal
+                );
+
+        playerTwoOptions.setAlignment(
+                Pos.CENTER_LEFT
+        );
+
+        /*
+         * Player Two is only available in Extended Mode.
+         * Binding the disabled state keeps the UI synchronized
+         * immediately when Extended Mode is switched on or off.
+         */
+        playerTwoOptions
+                .disableProperty()
+                .bind(
+                        extendedModeCheckBox
+                                .selectedProperty()
+                                .not()
+                );
+
+        settingsGrid.add(
+                createSettingLabel("Player One Type:"),
+                0,
+                6
+        );
+
+        settingsGrid.add(
+                playerOneOptions,
+                1,
+                6
+        );
+
+        settingsGrid.add(
+                createSettingLabel("Player Two Type:"),
+                0,
+                7
+        );
+
+        settingsGrid.add(
+                playerTwoOptions,
+                1,
+                7
         );
 
         Button backButton = new Button("Back");
@@ -191,9 +326,58 @@ public final class ConfigurationScreen {
 
             config.setMusicEnabled(musicCheckBox.isSelected());
             config.setSoundEnabled(soundCheckBox.isSelected());
-            config.setAiEnabled(aiCheckBox.isSelected());
             config.setExtendedMode(extendedModeCheckBox.isSelected());
+            /*
+             * Save the selected controller type for both players
+             * so the selections persist between application runs.
+             */
+            if (playerOneHuman.isSelected()) {
 
+                config.setPlayerOneType(
+                        PlayerType.HUMAN
+                );
+
+            } else if (playerOneAI.isSelected()) {
+
+                config.setPlayerOneType(
+                        PlayerType.AI
+                );
+
+            } else {
+
+                config.setPlayerOneType(
+                        PlayerType.EXTERNAL
+                );
+            }
+            /*
+             * Keep the existing AI gameplay implementation synchronized
+             * with the new Player One Type selection.
+             *
+             * This allows the current PlayScreen AI code to continue using
+             * isAiEnabled() without changing the teammate's AI implementation.
+             */
+            config.setAiEnabled(
+                    config.getPlayerOneType() == PlayerType.AI
+            );
+
+            if (playerTwoHuman.isSelected()) {
+
+                config.setPlayerTwoType(
+                        PlayerType.HUMAN
+                );
+
+            } else if (playerTwoAI.isSelected()) {
+
+                config.setPlayerTwoType(
+                        PlayerType.AI
+                );
+
+            } else {
+
+                config.setPlayerTwoType(
+                        PlayerType.EXTERNAL
+                );
+            }
             GameSettings.save();
 
             MainMenu.show(stage);
