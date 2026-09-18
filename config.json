@@ -4,8 +4,8 @@
   "gameLevel" : 1,
   "musicEnabled" : true,
   "soundEnabled" : true,
-  "aiEnabled" : true,
+  "aiEnabled" : false,
   "extendedMode" : false,
-  "playerOneType" : "AI",
+  "playerOneType" : "EXTERNAL",
   "playerTwoType" : "HUMAN"
 }
