@@ -3,12 +3,9 @@ package org.example;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
+import javafx.scene.control.*;
 import javafx.stage.Screen;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.Label;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
@@ -20,6 +17,7 @@ import org.example.pieces.Tetromino;
 import org.example.pieces.TetrominoFactory;
 import org.example.server.TetrisServerConnection;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 
@@ -65,7 +63,14 @@ public class PlayScreen {
     private static boolean aiMoving = false;
     private static long lastAiStepTime = 0;
 
+    //score
+    private static ScoreLogic scoreLogic;
+    private static Label scoreLabel;
+    private static Label levelLabel;
+    private static Label linesLabel;
 
+
+    //tracking pieces
     private static Tetromino upcomingPiece;
 
     public static void show(Stage stage) {
@@ -73,6 +78,7 @@ public class PlayScreen {
         // Reset state whenever a new game starts.
         paused = false;
         gameOver = false;
+        scoreLogic = new ScoreLogic(GameSettings.getConfig().getGameLevel());
 
         /*
          * Load the selected board dimensions from the shared
@@ -355,6 +361,13 @@ public class PlayScreen {
                         );
                     }
 
+                    if (rowsRemoved > 0) {
+                        scoreLogic.addLinesCleared(rowsRemoved);
+                        scoreLabel.setText("Score: " + scoreLogic.getScore());
+                        levelLabel.setText("Current Level: " + scoreLogic.getLevel());
+                        linesLabel.setText("Line Erased: " + scoreLogic.getLinesErased());
+                    }
+
                     printBoard();
 
                     // Create the next piece.
@@ -420,6 +433,21 @@ public class PlayScreen {
 
         root.setCenter(boardStack);
 
+        //score display
+        scoreLabel = new Label("Score: 0");
+        levelLabel = new Label("Current Level: " + scoreLogic.getLevel());
+        linesLabel = new Label("Line Erased: 0");
+
+        scoreLabel.setStyle("-fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold;");
+        levelLabel.setStyle("-fx-text-fill: white; -fx-font-size: 16px;");
+        linesLabel.setStyle("-fx-text-fill: white; -fx-font-size: 16px;");
+
+        VBox scoreBox = new VBox(10, scoreLabel, levelLabel, linesLabel);
+        scoreBox.setPadding(new Insets(15));
+        scoreBox.setStyle("-fx-background-color: rgba(0,0,0,0.5); -fx-background-radius: 10;");
+
+        root.setRight(scoreBox);
+
         // ---------------------------------------------------------
         // BACK BUTTON
         // ---------------------------------------------------------
@@ -452,7 +480,7 @@ public class PlayScreen {
                     timer.stop();
                 }
 
-                MainMenu.show(stage);
+                checkAndSaveHighScore(stage);
                 return;
             }
 
@@ -511,7 +539,8 @@ public class PlayScreen {
                 paused = false;
                 pauseMessage.setVisible(false);
 
-                MainMenu.show(stage);
+                checkAndSaveHighScore(stage);
+
 
             } else {
 
@@ -1394,4 +1423,49 @@ public class PlayScreen {
         return true;
     }
 
+    //HIGH SCORE ENTRY
+    private static void checkAndSaveHighScore(Stage stage) {
+
+        List<ScoreEntry> scores = HighScoreManager.load();
+
+        int finalScore = scoreLogic.getScore();
+
+        boolean qualifies = scores.size() < 10 ||
+                finalScore > scores.get(scores.size() - 1).score();
+
+        if (qualifies) {
+
+            TextInputDialog nameDialog = new TextInputDialog();
+            nameDialog.setTitle("High Score");
+            nameDialog.setHeaderText(null);
+            nameDialog.setContentText("Player 1's score is in the top scores, please enter player 1's name:");
+
+            Optional<String> result = nameDialog.showAndWait();
+
+            String playerName = result.isPresent() && !result.get().isBlank()
+                    ? result.get()
+                    : "Player";
+
+            String configDescription =
+                    COLS + "x" + ROWS +
+                            "(" + GameSettings.getConfig().getGameLevel() + ") " +
+                            GameSettings.getConfig().getPlayerOneType() + " Single";
+
+            scores.add(new ScoreEntry(playerName, finalScore, configDescription));
+
+            scores.sort((a, b) -> b.score() - a.score());
+
+            if (scores.size() > 10) {
+                scores = scores.subList(0, 10);
+            }
+
+            HighScoreManager.save(scores);
+        }
+
+        MainMenu.show(stage);
+    }
+
+
 }
+
+
