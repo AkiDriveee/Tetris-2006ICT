@@ -17,6 +17,8 @@ import javafx.stage.Stage;
 import javafx.animation.AnimationTimer;
 import org.example.*;
 import org.example.pieces.Tetromino;
+import org.example.pieces.TetrominoFactory;
+import org.example.server.TetrisServerConnection;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -977,10 +979,15 @@ public class PlayScreen {
             return;
         }
 
-        if (playerOne.getPlayerType() == PlayerType.AI) {
+        /*
+         * AI and External players both use the paced automated movement
+         * routine. AI gets its target locally; External gets it from the server.
+         */
+        if (playerOne.getPlayerType() == PlayerType.AI ||
+                playerOne.getPlayerType() == PlayerType.EXTERNAL) {
 
             if (!playerOneAiMoving) {
-                preparePlayerOneAiMove();
+                preparePlayerOneAutomatedMove();
             }
 
             if (now - playerOneLastAiStepTime >= AI_STEP_DELAY_NANOS) {
@@ -990,11 +997,12 @@ public class PlayScreen {
         }
 
         /*
-         * AI pieces use the existing faster fall speed. Human pieces
+         * Automated pieces use the existing faster fall speed. Human pieces
          * retain the normal smooth fall speed.
          */
         int fallSpeed =
-                playerOne.getPlayerType() == PlayerType.AI
+                playerOne.getPlayerType() == PlayerType.AI ||
+                        playerOne.getPlayerType() == PlayerType.EXTERNAL
                         ? 5
                         : 1;
 
@@ -1024,10 +1032,15 @@ public class PlayScreen {
             return;
         }
 
-        if (playerTwo.getPlayerType() == PlayerType.AI) {
+        /*
+         * Player Two follows the same controller rules as Player One so
+         * Extended Mode can independently use Human, AI, or External.
+         */
+        if (playerTwo.getPlayerType() == PlayerType.AI ||
+                playerTwo.getPlayerType() == PlayerType.EXTERNAL) {
 
             if (!playerTwoAiMoving) {
-                preparePlayerTwoAiMove();
+                preparePlayerTwoAutomatedMove();
             }
 
             if (now - playerTwoLastAiStepTime >= AI_STEP_DELAY_NANOS) {
@@ -1037,7 +1050,8 @@ public class PlayScreen {
         }
 
         int fallSpeed =
-                playerTwo.getPlayerType() == PlayerType.AI
+                playerTwo.getPlayerType() == PlayerType.AI ||
+                        playerTwo.getPlayerType() == PlayerType.EXTERNAL
                         ? 5
                         : 1;
 
@@ -1065,13 +1079,38 @@ public class PlayScreen {
     // PLAYER ONE AI
     // -------------------------------------------------------------
 
-    private static void preparePlayerOneAiMove() {
+    private static void preparePlayerOneAutomatedMove() {
 
-        int[] move =
-                tetrisAI.findBestMove(
-                        playerOne.getBoard(),
-                        currentPiece
-                );
+        int[] move;
+
+        if (playerOne.getPlayerType() == PlayerType.EXTERNAL) {
+
+            /*
+             * Supply the external server with Player One's independent board,
+             * current piece, and next piece from the shared sequence.
+             */
+            Tetromino nextPiece =
+                    createPieceFromSharedSequence(
+                            playerOneSequenceIndex + 1
+                    );
+
+            move =
+                    TetrisServerConnection
+                            .getInstance()
+                            .getServerMove(
+                                    playerOne.getBoard(),
+                                    currentPiece,
+                                    nextPiece
+                            );
+
+        } else {
+
+            move =
+                    tetrisAI.findBestMove(
+                            playerOne.getBoard(),
+                            currentPiece
+                    );
+        }
 
         playerOneAiTargetCol = move[0];
         playerOneAiTargetRotation = move[1];
@@ -1141,13 +1180,38 @@ public class PlayScreen {
     // PLAYER TWO AI
     // -------------------------------------------------------------
 
-    private static void preparePlayerTwoAiMove() {
+    private static void preparePlayerTwoAutomatedMove() {
 
-        int[] move =
-                tetrisAI.findBestMove(
-                        playerTwo.getBoard(),
-                        currentPieceTwo
-                );
+        int[] move;
+
+        if (playerTwo.getPlayerType() == PlayerType.EXTERNAL) {
+
+            /*
+             * Player Two uses its own board and sequence position while still
+             * consuming the same ordered tetromino types as Player One.
+             */
+            Tetromino nextPiece =
+                    createPieceFromSharedSequence(
+                            playerTwoSequenceIndex + 1
+                    );
+
+            move =
+                    TetrisServerConnection
+                            .getInstance()
+                            .getServerMove(
+                                    playerTwo.getBoard(),
+                                    currentPieceTwo,
+                                    nextPiece
+                            );
+
+        } else {
+
+            move =
+                    tetrisAI.findBestMove(
+                            playerTwo.getBoard(),
+                            currentPieceTwo
+                    );
+        }
 
         playerTwoAiTargetCol = move[0];
         playerTwoAiTargetRotation = move[1];
