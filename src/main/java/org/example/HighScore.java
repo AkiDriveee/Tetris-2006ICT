@@ -8,6 +8,8 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
 
+import java.util.List;
+
 public class HighScore {
 
     public static void show(Stage stage) {
@@ -34,11 +36,9 @@ public class HighScore {
                 -fx-text-fill: white;
                 """);
 
-        VBox.setMargin(title, new Insets(0, 0, 20, 0));
-
         // Score container
         VBox scoreContainer = new VBox(5);
-        scoreContainer.setMaxWidth(520);
+        scoreContainer.setMaxWidth(650);
         scoreContainer.setPadding(new Insets(20));
 
         scoreContainer.setStyle("""
@@ -49,50 +49,55 @@ public class HighScore {
                 -fx-border-width: 1;
                 """);
 
-        ScoreEntry[] scores = {
-                new ScoreEntry("Aksa", 9800),
-                new ScoreEntry("Sukhdeep", 9780),
-                new ScoreEntry("Taj", 8700),
-                new ScoreEntry("Havana", 8300),
-                new ScoreEntry("Emma", 7900),
-                new ScoreEntry("Lima", 7500),
-                new ScoreEntry("John", 7100),
-                new ScoreEntry("Peria", 6800),
-                new ScoreEntry("Olivia", 6400),
-                new ScoreEntry("Max", 6000)
-        };
+        // Load real saved scores, padding empty slots up to 10.
+        List<ScoreEntry> scoreList = HighScoreManager.load();
+
+        ScoreEntry[] scores = new ScoreEntry[10];
+
+        for (int i = 0; i < 10; i++) {
+            if (i < scoreList.size()) {
+                scores[i] = scoreList.get(i);
+            } else {
+                scores[i] = new ScoreEntry("----", 0, "----");
+            }
+        }
 
         for (int i = 0; i < scores.length; i++) {
 
             ScoreEntry score = scores[i];
 
             Label rank = new Label(String.valueOf(i + 1));
-            rank.setPrefWidth(45);
+            rank.setPrefWidth(40);
             rank.setStyle("""
                     -fx-text-fill: #00d9ff;
-                    -fx-font-size: 18px;
+                    -fx-font-size: 16px;
                     -fx-font-weight: bold;
                     """);
 
             Label name = new Label(score.name());
-            name.setPrefWidth(260);
+            name.setPrefWidth(160);
             name.setStyle("""
                     -fx-text-fill: white;
-                    -fx-font-size: 18px;
+                    -fx-font-size: 16px;
                     -fx-font-weight: bold;
                     """);
 
             Label points = new Label(String.valueOf(score.score()));
+            points.setPrefWidth(100);
             points.setStyle("""
                     -fx-text-fill: #00d9ff;
-                    -fx-font-size: 18px;
+                    -fx-font-size: 16px;
                     -fx-font-weight: bold;
                     """);
 
-            Region spacer = new Region();
-            HBox.setHgrow(spacer, Priority.ALWAYS);
+            Label config = new Label(score.config());
+            config.setPrefWidth(200);
+            config.setStyle("""
+                    -fx-text-fill: rgba(255,255,255,0.7);
+                    -fx-font-size: 14px;
+                    """);
 
-            HBox row = new HBox(12, rank, name, spacer, points);
+            HBox row = new HBox(12, rank, name, points, config);
             row.setAlignment(Pos.CENTER_LEFT);
             row.setPadding(new Insets(6, 18, 6, 18));
 
@@ -103,6 +108,35 @@ public class HighScore {
 
             scoreContainer.getChildren().add(row);
         }
+
+        // Clear High Score button
+        Button clearButton = new Button("Clear High Score");
+        clearButton.setPrefWidth(200);
+        clearButton.setPrefHeight(38);
+
+        clearButton.setStyle("""
+                -fx-background-color: #e63946;
+                -fx-background-radius: 10;
+                -fx-text-fill: white;
+                -fx-font-size: 14px;
+                -fx-font-weight: bold;
+                -fx-cursor: hand;
+                """);
+
+        clearButton.setOnAction(e -> {
+            HighScoreManager.clear();
+            show(stage); // refresh the screen to show the now-empty list
+        });
+
+        // Top row: title on the left, Clear button pushed to the right
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        HBox topRow = new HBox(title, spacer, clearButton);
+        topRow.setAlignment(Pos.CENTER_LEFT);
+        topRow.setMaxWidth(650);
+
+        VBox.setMargin(topRow, new Insets(0, 0, 20, 0));
 
         // Back button
         Button backButton = new Button("Back");
@@ -118,14 +152,14 @@ public class HighScore {
                 -fx-cursor: hand;
                 """);
 
-        // Correct Milestone 1 behaviour:
+
         // return to the main menu instead of closing the application
         backButton.setOnAction(e -> MainMenu.show(stage));
 
         VBox.setMargin(backButton, new Insets(15, 0, 0, 0));
 
         root.getChildren().addAll(
-                title,
+                topRow,
                 scoreContainer,
                 backButton
         );
