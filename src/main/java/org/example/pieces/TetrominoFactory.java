@@ -1,5 +1,7 @@
 package org.example.pieces;
 
+import org.example.TetrominoType;
+
 import java.util.Random;
 
 public class TetrominoFactory {
