@@ -3,23 +3,27 @@ package org.example;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
-import javafx.scene.control.*;
 import javafx.stage.Screen;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextInputDialog;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Rectangle;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.animation.AnimationTimer;
+import org.example.*;
 import org.example.pieces.Tetromino;
 import org.example.pieces.TetrominoFactory;
 import org.example.server.TetrisServerConnection;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.Random;
 
 public class PlayScreen {
 
@@ -40,45 +44,103 @@ public class PlayScreen {
     private static final int CELL_SIZE = 29;
 
     /*
-     * These arrays are created when PlayScreen opens so their
-     * dimensions always match the configured field size.
+     * Temporary board reference retained for the existing AI
+     * calculation and terminal debug output.
+     *
+     * PlayerGame owns the actual board state.
      */
     private static Color[][] board;
-    private static Region[][] cellViews;
+
+    /*
+     * Represents Player One's independent game field.
+     *
+     * PlayerGame will gradually take ownership of the board
+     * state and gameplay operations currently handled directly
+     * by PlayScreen. Keeping the original fields temporarily
+     * allows the migration to be tested in small safe steps.
+     */
+    private static PlayerGame playerOne;
+
+    /*
+     * Player Two exists only when Extended Mode is enabled.
+     * Gameplay is intentionally connected in a later step; this
+     * first stage establishes and tests the independent second field.
+     */
+    private static PlayerGame playerTwo;
 
     private static AnimationTimer timer;
     private static Tetromino currentPiece;
-    private static Random random = new Random();
+
+    /*
+     * Player Two receives a separate Tetromino object in Extended Mode.
+     * The type is shared with Player One, but movement/rotation state is not.
+     */
+    private static Tetromino currentPieceTwo;
     private static TetrominoFactory tetrominoFactory = new TetrominoFactory();
+
+    /*
+     * Both players consume the same ordered tetromino types independently.
+     * Separate indexes allow either player to progress faster without
+     * changing the sequence seen by the other player.
+     */
+    private static final List<TetrominoType> sharedSequence =
+            new ArrayList<>();
+
+    private static int playerOneSequenceIndex;
+    private static int playerTwoSequenceIndex;
 
     // Pause / game-over state
     private static boolean paused = false;
     private static boolean gameOver = false;
 
-    //AI MODE
-    private static TetrisAI tetrisAI = new TetrisAI();
-    private static int aiTargetCol = 0;
-    private static int aiTargetRotation = 0;
-    private static int aiRotationsDone = 0;
-    private static boolean aiMoving = false;
-    private static long lastAiStepTime = 0;
+    // ---------------------------------------------------------
+    // INDEPENDENT AI STATE
+    // ---------------------------------------------------------
+    private static final TetrisAI tetrisAI = new TetrisAI();
 
-    //score
+    private static int playerOneAiTargetCol;
+    private static int playerOneAiTargetRotation;
+    private static int playerOneAiRotationsDone;
+    private static boolean playerOneAiMoving;
+    private static long playerOneLastAiStepTime;
+
+    private static int playerTwoAiTargetCol;
+    private static int playerTwoAiTargetRotation;
+    private static int playerTwoAiRotationsDone;
+    private static boolean playerTwoAiMoving;
+    private static long playerTwoLastAiStepTime;
+
+    private static final long AI_STEP_DELAY_NANOS =
+            300_000_000L;
+
+    // ---------------------------------------------------------
+    // PLAYER ONE SCORE STATE
+    // ---------------------------------------------------------
     private static ScoreLogic scoreLogic;
     private static Label scoreLabel;
     private static Label levelLabel;
     private static Label linesLabel;
-
-
-    //tracking pieces
-    private static Tetromino upcomingPiece;
 
     public static void show(Stage stage) {
 
         // Reset state whenever a new game starts.
         paused = false;
         gameOver = false;
-        scoreLogic = new ScoreLogic(GameSettings.getConfig().getGameLevel());
+
+        // Start Player One's score from the configured game level.
+        scoreLogic = new ScoreLogic(
+                GameSettings.getConfig().getGameLevel()
+        );
+
+        // Start a fresh shared sequence whenever a new game begins.
+        sharedSequence.clear();
+        playerOneSequenceIndex = 0;
+        playerTwoSequenceIndex = 0;
+
+        playerOneAiMoving = false;
+        playerTwoAiMoving = false;
+        playerOneLastAiStepTime = 0;
+        playerTwoLastAiStepTime = 0;
 
         /*
          * Load the selected board dimensions from the shared
@@ -90,81 +152,124 @@ public class PlayScreen {
         ROWS = config.getFieldHeight();
 
         /*
-         * Recreate the board arrays so they exactly match
-         * the configured width and height.
+         * Create Player One using the saved field dimensions
+         * and controller type from the Configuration screen.
+         *
+         * The existing PlayScreen board remains active during
+         * this migration so current gameplay is not disrupted.
          */
-        board = new Color[ROWS][COLS];
-        cellViews = new Region[ROWS][COLS];
+        playerOne =
+                new PlayerGame(
+                        config.getPlayerOneType(),
+                        COLS,
+                        ROWS
+                );
+
+        /*
+         * Create an independent Player Two game state only for
+         * Extended Mode. Single-player mode therefore keeps the
+         * existing Player One behaviour unchanged.
+         */
+        boolean extendedMode =
+                config.isExtendedMode();
+
+        playerTwo =
+                extendedMode
+                        ? new PlayerGame(
+                        config.getPlayerTwoType(),
+                        COLS,
+                        ROWS
+                )
+                        : null;
+
+        /*
+         * Keep a temporary reference to Player One's board for the
+         * existing AI calculation and terminal debug output.
+         */
+        board = playerOne.getBoard();
 
         BorderPane root = new BorderPane();
+
         // ---------------------------------------------------------
-        // BUILD EMPTY 10 x 20 BOARD
+        // CREATE PLAYER ONE GAME FIELD
         // ---------------------------------------------------------
 
-        GridPane grid = new GridPane();
-
-        grid.setStyle("-fx-background-color: black");
-        grid.setMaxSize(
-                Region.USE_PREF_SIZE,
-                Region.USE_PREF_SIZE
-        );
-
-        for (int row = 0; row < ROWS; row++) {
-
-            for (int col = 0; col < COLS; col++) {
-
-                Region cell = new Region();
-
-                cell.setPrefSize(
-                        CELL_SIZE,
+        /*
+         * PlayerGame now creates and owns Player One's visual
+         * board cells and falling-piece layer.
+         *
+         * PlayScreen still controls the game loop and input while
+         * the gameplay logic is migrated gradually to PlayerGame.
+         */
+        StackPane boardStack =
+                playerOne.createGameField(
                         CELL_SIZE
                 );
 
-                cell.setStyle(
-                        "-fx-background-color: #101010;" +
-                                "-fx-border-color: #101010;" +
-                                "-fx-border-width: 1;"
+        /*
+         * Extended Mode displays two independent fields side-by-side.
+         * Player Two is visual-only in this step; movement and the shared
+         * tetromino sequence are connected after the layout is verified.
+         */
+        StackPane boardStackTwo =
+                extendedMode
+                        ? playerTwo.createGameField(CELL_SIZE)
+                        : null;
+
+        Label playerOneLabel =
+                createPlayerLabel("Player One");
+
+        VBox playerOneArea =
+                new VBox(
+                        8,
+                        playerOneLabel,
+                        boardStack
                 );
 
-                grid.add(cell, col, row);
+        playerOneArea.setAlignment(Pos.CENTER);
 
-                cellViews[row][col] = cell;
+        HBox boardsArea =
+                new HBox(24);
 
-                // Clear data left from an earlier game.
-                board[row][col] = null;
-            }
+        boardsArea.setAlignment(Pos.CENTER);
+        boardsArea.getChildren().add(playerOneArea);
+
+        if (extendedMode) {
+
+            Label playerTwoLabel =
+                    createPlayerLabel("Player Two");
+
+            VBox playerTwoArea =
+                    new VBox(
+                            8,
+                            playerTwoLabel,
+                            boardStackTwo
+                    );
+
+            playerTwoArea.setAlignment(Pos.CENTER);
+            boardsArea.getChildren().add(playerTwoArea);
         }
 
         // ---------------------------------------------------------
         // CREATE FIRST TETROMINO
         // ---------------------------------------------------------
 
-        currentPiece = spawnRandomPiece();
-        upcomingPiece = spawnRandomPiece();
+        /*
+         * Generate the opening tetromino type once. Extended Mode then
+         * creates two independent objects from that same type so both
+         * players start with the same sequence without sharing state.
+         */
+        currentPiece =
+                createPieceFromSharedSequence(
+                        playerOneSequenceIndex
+                );
 
-        // Falling pieces are drawn on a separate pixel-based layer.
-        // This allows smooth movement between grid rows.
-        Pane pieceLayer = new Pane();
-
-        pieceLayer.setPickOnBounds(false);
-
-        pieceLayer.setPrefSize(
-                COLS * CELL_SIZE,
-                ROWS * CELL_SIZE
-        );
-
-        pieceLayer.setMaxSize(
-                COLS * CELL_SIZE,
-                ROWS * CELL_SIZE
-        );
-
-        StackPane boardStack =
-                new StackPane(grid, pieceLayer);
-
-        boardStack.setMaxSize(
-                Region.USE_PREF_SIZE,
-                Region.USE_PREF_SIZE
-        );
+        currentPieceTwo =
+                extendedMode
+                        ? createPieceFromSharedSequence(
+                        playerTwoSequenceIndex
+                )
+                        : null;
 
         // ---------------------------------------------------------
         // PAUSE MESSAGE
@@ -206,10 +311,23 @@ public class PlayScreen {
 
         boardStack.getChildren().add(pauseMessage);
 
-        drawFallingPiece(
+        playerOne.drawFallingPiece(
                 currentPiece,
-                pieceLayer
+                CELL_SIZE
         );
+
+        /*
+         * Player Two is visual-only at this checkpoint. Showing the opening
+         * piece verifies that both fields received the same TetrominoType
+         * before independent Player Two gameplay is connected.
+         */
+        if (extendedMode && currentPieceTwo != null) {
+
+            playerTwo.drawFallingPiece(
+                    currentPieceTwo,
+                    CELL_SIZE
+            );
+        }
 
 
         // ---------------------------------------------------------
@@ -221,231 +339,83 @@ public class PlayScreen {
             timer.stop();
         }
 
+        /*
+         * Update Player One and Player Two independently on every frame.
+         * No player's AI processing is allowed to return from handle(),
+         * because doing so would freeze the other player's field.
+         */
         timer = new AnimationTimer() {
 
             @Override
             public void handle(long now) {
 
-                if (aiMoving) {
-
-                    long delayNanos = 300_000_000;
-
-                    if (now - lastAiStepTime < delayNanos) {
-                        return; // not enough time has passed yet, wait
-                    }
-
-                    lastAiStepTime = now;
-
-                    if (aiRotationsDone < aiTargetRotation) {
-
-                        /*
-                         * Apply the AI rotation only when the rotated tetromino
-                         * remains inside the configured board and does not
-                         * collide with an occupied cell.
-                         */
-                        if (canRotate(currentPiece)) {
-                            currentPiece.setShape(
-                                    currentPiece.getRotatedShape()
-                            );
-
-                            aiRotationsDone++;
-
-                            // Play the sound only after a successful AI rotation.
-                            AudioManager.playMoveTurnSound();
-
-                            drawFallingPiece(
-                                    currentPiece,
-                                    pieceLayer
-                            );
-
-                            return;
-                        }
-
-                        /*
-                         * The requested rotation cannot be performed safely.
-                         * Skip the remaining rotations and continue positioning.
-                         */
-                        aiRotationsDone = aiTargetRotation;
-                    }
-
-                    if (currentPiece.getCol() < aiTargetCol) {
-
-                        /*
-                         * Use the same boundary/collision check as manual movement
-                         * so the AI cannot move a tetromino outside the game board.
-                         */
-                        if (canMoveRight(currentPiece)) {
-                            currentPiece.moveRight();
-
-                            // Play the movement sound after a successful AI move.
-                            AudioManager.playMoveTurnSound();
-
-                            drawFallingPiece(currentPiece, pieceLayer);
-                            return;
-                        }
-
-                    }
-
-                    if (currentPiece.getCol() > aiTargetCol) {
-
-                        /*
-                         * Use the same boundary/collision check as manual movement
-                         * so the AI cannot move a tetromino outside the game board.
-                         */
-                        if (canMoveLeft(currentPiece)) {
-                            currentPiece.moveLeft();
-
-                            // Play the movement sound after a successful AI move.
-                            AudioManager.playMoveTurnSound();
-
-                            drawFallingPiece(currentPiece, pieceLayer);
-                            return;
-                        }
-                    }
-                    // Finish AI positioning once no further safe horizontal move is required.
-                    aiMoving = false;
-                }
-
-
-                // Completely freeze automatic movement while paused.
                 if (paused || gameOver) {
                     return;
                 }
 
-                if (canMoveDown(currentPiece)) {
+                updatePlayerOne(now);
 
-                    /*
-                     * Move by one PIXEL rather than immediately moving
-                     * by one entire board row.
-                     *
-                     * This provides the smooth normal downward movement
-                     * required by the specification.
-                     */
+                if (extendedMode &&
+                        playerTwo != null &&
+                        currentPieceTwo != null &&
+                        !playerTwo.isGameOver()) {
 
-                    int fallSpeed = GameSettings.getConfig().isAiEnabled() ? 5 : 1;
-                    currentPiece.addYOffset(fallSpeed);
-
-                    if (currentPiece.getYOffset() >= CELL_SIZE) {
-
-                        currentPiece.resetYOffset();
-
-                        currentPiece.moveDown();
-                    }
-
-                    drawFallingPiece(
-                            currentPiece,
-                            pieceLayer
-                    );
-
-                } else {
-
-                    // -------------------------------------------------
-                    // PIECE HAS LANDED
-                    // -------------------------------------------------
-
-                    drawPiece(currentPiece);
-
-                    pieceLayer
-                            .getChildren()
-                            .clear();
-
-                    // Detect and erase ALL completed rows.
-                    int rowsRemoved =
-                            eraseFullRows();
-
-                    if (rowsRemoved > 0) {
-
-                        System.out.println(
-                                "Rows removed: " +
-                                        rowsRemoved
-                        );
-                    }
-
-                    if (rowsRemoved > 0) {
-                        scoreLogic.addLinesCleared(rowsRemoved);
-                        scoreLabel.setText("Score: " + scoreLogic.getScore());
-                        levelLabel.setText("Current Level: " + scoreLogic.getLevel());
-                        linesLabel.setText("Line Erased: " + scoreLogic.getLinesErased());
-                    }
-
-                    printBoard();
-
-                    // Create the next piece.
-                    Tetromino nextPiece = upcomingPiece;
-
-                    if (canSpawn(nextPiece)) {
-
-                        currentPiece = nextPiece;
-                        upcomingPiece = spawnRandomPiece();
-
-                        if (GameSettings.getConfig().isAiEnabled()) {
-                            int[] move = tetrisAI.findBestMove(board, currentPiece);
-                            aiTargetCol = move[0];
-                            aiTargetRotation = move[1];
-                            aiRotationsDone = 0;
-                            aiMoving = true;
-
-                            System.out.println("AI target col: " + aiTargetCol + ", rotation: " + aiTargetRotation);
-                        }
-
-                        else if (GameSettings.getConfig().getPlayerOneType() == PlayerType.EXTERNAL) {
-                            int[] move = TetrisServerConnection.getInstance().getServerMove(board, currentPiece, nextPiece);
-                            aiTargetCol = move[0];
-                            aiTargetRotation = move[1];
-                            aiRotationsDone = 0;
-                            aiMoving = true;
-
-                            System.out.println("Server target col: " + aiTargetCol + ", rotation: " + aiTargetRotation);
-                        }
-
-
-
-
-                        drawFallingPiece(
-                                currentPiece,
-                                pieceLayer
-                        );
-
-                    } else {
-
-                        // ---------------------------------------------
-                        // GAME OVER
-                        // ---------------------------------------------
-
-                        System.out.println(
-                                "GAME OVER"
-                        );
-
-                        gameOver = true;
-                        paused = false;
-                        // Play the game-finish sound once when the game ends.
-                        AudioManager.playGameFinishSound();
-
-                        pauseMessage.setVisible(false);
-
-                        timer.stop();
-                    }
+                    updatePlayerTwo(now);
                 }
             }
         };
 
         timer.start();
 
-        root.setCenter(boardStack);
+        /*
+         * Place the board inside a fixed layout wrapper. Scaling a JavaFX node
+         * changes its visual bounds but not the amount of layout space that
+         * BorderPane reserves for it. The wrapper is resized later to the
+         * board's displayed dimensions so large fields cannot push the Back
+         * button below the visible window.
+         */
+        StackPane boardContainer =
+                new StackPane(boardsArea);
 
-        //score display
+        boardContainer.setAlignment(
+                Pos.CENTER
+        );
+
+        root.setCenter(boardContainer);
+
+        // ---------------------------------------------------------
+        // SCORE DISPLAY
+        // ---------------------------------------------------------
         scoreLabel = new Label("Score: 0");
-        levelLabel = new Label("Current Level: " + scoreLogic.getLevel());
+        levelLabel = new Label(
+                "Current Level: " + scoreLogic.getLevel()
+        );
         linesLabel = new Label("Line Erased: 0");
 
-        scoreLabel.setStyle("-fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold;");
-        levelLabel.setStyle("-fx-text-fill: white; -fx-font-size: 16px;");
-        linesLabel.setStyle("-fx-text-fill: white; -fx-font-size: 16px;");
+        scoreLabel.setStyle(
+                "-fx-text-fill: white;" +
+                        "-fx-font-size: 18px;" +
+                        "-fx-font-weight: bold;"
+        );
 
-        VBox scoreBox = new VBox(10, scoreLabel, levelLabel, linesLabel);
+        levelLabel.setStyle(
+                "-fx-text-fill: white;" +
+                        "-fx-font-size: 16px;"
+        );
+
+        linesLabel.setStyle(
+                "-fx-text-fill: white;" +
+                        "-fx-font-size: 16px;"
+        );
+
+        VBox scoreBox = new VBox(
+                10, scoreLabel, levelLabel, linesLabel
+        );
         scoreBox.setPadding(new Insets(15));
-        scoreBox.setStyle("-fx-background-color: rgba(0,0,0,0.5); -fx-background-radius: 10;");
-
+        scoreBox.setStyle(
+                "-fx-background-color: rgba(0,0,0,0.5);" +
+                        "-fx-background-radius: 10;"
+        );
         root.setRight(scoreBox);
 
         // ---------------------------------------------------------
@@ -539,8 +509,7 @@ public class PlayScreen {
                 paused = false;
                 pauseMessage.setVisible(false);
 
-                checkAndSaveHighScore(stage);
-
+                MainMenu.show(stage);
 
             } else {
 
@@ -602,27 +571,47 @@ public class PlayScreen {
                 ROWS * CELL_SIZE;
 
         /*
-         * Reserve vertical space for the Back button and other
-         * layout spacing. If a configured board is too tall to fit,
-         * visually scale the board while keeping the original
-         * CELL_SIZE calculations used by the gameplay logic.
+         * Extended Mode must fit two fields horizontally as well as
+         * vertically. Use one common scale so both players' fields remain
+         * the same visible size and the Back button remains on screen.
          */
+        double boardGap =
+                extendedMode ? 24 : 0;
+
+        double unscaledBoardsWidth =
+                extendedMode
+                        ? (boardWidth * 2) + boardGap
+                        : boardWidth;
+
         double availableBoardHeight =
-                screenBounds.getHeight() - 170;
+                screenBounds.getHeight() - 210;
+
+        double availableBoardWidth =
+                screenBounds.getWidth() - 120;
+
+        double heightScale =
+                availableBoardHeight / boardHeight;
+
+        double widthScale =
+                availableBoardWidth / unscaledBoardsWidth;
 
         double boardScale =
                 Math.min(
                         1.0,
-                        availableBoardHeight / boardHeight
+                        Math.min(
+                                heightScale,
+                                widthScale
+                        )
                 );
 
         boardStack.setScaleX(boardScale);
         boardStack.setScaleY(boardScale);
 
-        /*
-         * Calculate the visible dimensions of the board after
-         * any required scaling has been applied.
-         */
+        if (boardStackTwo != null) {
+            boardStackTwo.setScaleX(boardScale);
+            boardStackTwo.setScaleY(boardScale);
+        }
+
         double displayedBoardWidth =
                 boardWidth * boardScale;
 
@@ -630,23 +619,72 @@ public class PlayScreen {
                 boardHeight * boardScale;
 
         /*
+         * Scaling changes visual bounds but not JavaFX layout bounds.
+         * Give each labelled player area the visible dimensions so the
+         * two-board HBox does not reserve the original unscaled sizes.
+         */
+        playerOneArea.setMinWidth(displayedBoardWidth);
+        playerOneArea.setPrefWidth(displayedBoardWidth);
+        playerOneArea.setMaxWidth(displayedBoardWidth);
+
+        if (extendedMode) {
+            VBox playerTwoArea =
+                    (VBox) boardsArea.getChildren().get(1);
+
+            playerTwoArea.setMinWidth(displayedBoardWidth);
+            playerTwoArea.setPrefWidth(displayedBoardWidth);
+            playerTwoArea.setMaxWidth(displayedBoardWidth);
+        }
+
+        double displayedBoardsWidth =
+                extendedMode
+                        ? (displayedBoardWidth * 2) + boardGap
+                        : displayedBoardWidth;
+
+        /*
+         * Include the player label above the board while reserving only
+         * the visible scaled board height in the centre layout.
+         */
+        double displayedAreaHeight =
+                displayedBoardHeight + 35;
+
+        boardContainer.setMinSize(
+                displayedBoardsWidth,
+                displayedAreaHeight
+        );
+
+        boardContainer.setPrefSize(
+                displayedBoardsWidth,
+                displayedAreaHeight
+        );
+
+        boardContainer.setMaxSize(
+                displayedBoardsWidth,
+                displayedAreaHeight
+        );
+
+        /*
          * Automatically size the gameplay window according to
          * the configured field dimensions while keeping it within
          * the usable screen area.
          */
         double windowWidth =
-                Math.clamp(
-                        displayedBoardWidth + 180
-                        ,
-                        500,
-                        screenBounds.getWidth() - 80);
+                Math.min(
+                        screenBounds.getWidth() - 80,
+                        Math.max(
+                                500,
+                                displayedBoardsWidth + 120
+                        )
+                );
 
         double windowHeight =
-                Math.clamp(
-                        displayedBoardHeight + 120
-                        ,
-                        600,
-                        screenBounds.getHeight() - 40);
+                Math.min(
+                        screenBounds.getHeight() - 40,
+                        Math.max(
+                                600,
+                                displayedAreaHeight + 120
+                        )
+                );
 
         Scene scene =
                 new Scene(
@@ -662,10 +700,10 @@ public class PlayScreen {
         stage.setScene(scene);
 
         /*
-         * Apply the calculated size and centre the gameplay
-         * window after the configured dimensions are applied.
+         * Keep the explicitly calculated scene dimensions and centre the
+         * gameplay window. Calling sizeToScene() here would allow the
+         * unscaled board layout bounds to enlarge the stage again.
          */
-        stage.sizeToScene();
         stage.centerOnScreen();
         // ---------------------------------------------------------
         // KEYBOARD CONTROLS
@@ -779,16 +817,16 @@ public class PlayScreen {
 
                             if (!paused &&
                                     !gameOver &&
-                                    !isAutomatedMode() &&
-                                    canMoveDown(currentPiece)) {
+                                    playerOne.getPlayerType() == PlayerType.HUMAN &&
+                                    playerOne.canMoveDown(currentPiece)) {
 
                                 currentPiece.moveDown();
 
                                 currentPiece.resetYOffset();
 
-                                drawFallingPiece(
+                                playerOne.drawFallingPiece(
                                         currentPiece,
-                                        pieceLayer
+                                        CELL_SIZE
                                 );
                             }
 
@@ -803,16 +841,16 @@ public class PlayScreen {
 
                             if (!paused &&
                                     !gameOver &&
-                                    !isAutomatedMode() &&
-                                    canMoveLeft(currentPiece)) {
+                                    playerOne.getPlayerType() == PlayerType.HUMAN &&
+                                    playerOne.canMoveLeft(currentPiece)) {
 
                                 currentPiece.moveLeft();
                                 // Play movement sound when the piece moves successfully.
                                 AudioManager.playMoveTurnSound();
 
-                                drawFallingPiece(
+                                playerOne.drawFallingPiece(
                                         currentPiece,
-                                        pieceLayer
+                                        CELL_SIZE
                                 );
                             }
 
@@ -827,16 +865,16 @@ public class PlayScreen {
 
                             if (!paused &&
                                     !gameOver &&
-                                    !isAutomatedMode() &&
-                                    canMoveRight(currentPiece)) {
+                                    playerOne.getPlayerType() == PlayerType.HUMAN &&
+                                    playerOne.canMoveRight(currentPiece)) {
 
                                 currentPiece.moveRight();
                                 // Play movement sound when the piece moves successfully.
                                 AudioManager.playMoveTurnSound();
 
-                                drawFallingPiece(
+                                playerOne.drawFallingPiece(
                                         currentPiece,
-                                        pieceLayer
+                                        CELL_SIZE
                                 );
                             }
 
@@ -851,8 +889,8 @@ public class PlayScreen {
 
                             if (!paused &&
                                     !gameOver &&
-                                    !isAutomatedMode() &&
-                                    canRotate(currentPiece)) {
+                                    playerOne.getPlayerType() == PlayerType.HUMAN &&
+                                    playerOne.canRotate(currentPiece)) {
 
                                 currentPiece.setShape(
                                         currentPiece
@@ -861,9 +899,109 @@ public class PlayScreen {
                                 // Play rotation sound after a successful turn.
                                 AudioManager.playMoveTurnSound();
 
-                                drawFallingPiece(
+                                playerOne.drawFallingPiece(
                                         currentPiece,
-                                        pieceLayer
+                                        CELL_SIZE
+                                );
+                            }
+
+                            event.consume();
+                        }
+
+                        // ---------------------------------------------
+                        // PLAYER TWO HUMAN CONTROLS
+                        // L = LEFT, R = RIGHT, D = DOWN, W = ROTATE
+                        // ---------------------------------------------
+
+                        case L -> {
+
+                            if (!paused &&
+                                    !gameOver &&
+                                    extendedMode &&
+                                    playerTwo != null &&
+                                    !playerTwo.isGameOver() &&
+                                    playerTwo.getPlayerType() == PlayerType.HUMAN &&
+                                    playerTwo.canMoveLeft(currentPieceTwo)) {
+
+                                currentPieceTwo.moveLeft();
+                                AudioManager.playMoveTurnSound();
+
+                                playerTwo.drawFallingPiece(
+                                        currentPieceTwo,
+                                        CELL_SIZE
+                                );
+                            }
+
+                            event.consume();
+                        }
+
+                        case R -> {
+
+                            if (!paused &&
+                                    !gameOver &&
+                                    extendedMode &&
+                                    playerTwo != null &&
+                                    !playerTwo.isGameOver() &&
+                                    playerTwo.getPlayerType() == PlayerType.HUMAN &&
+                                    playerTwo.canMoveRight(currentPieceTwo)) {
+
+                                currentPieceTwo.moveRight();
+                                AudioManager.playMoveTurnSound();
+
+                                playerTwo.drawFallingPiece(
+                                        currentPieceTwo,
+                                        CELL_SIZE
+                                );
+                            }
+
+                            event.consume();
+                        }
+
+                        case D -> {
+
+                            /*
+                             * D moves Player Two down faster while S remains
+                             * reserved for the in-game sound-effects toggle.
+                             */
+                            if (!paused &&
+                                    !gameOver &&
+                                    extendedMode &&
+                                    playerTwo != null &&
+                                    !playerTwo.isGameOver() &&
+                                    playerTwo.getPlayerType() == PlayerType.HUMAN &&
+                                    playerTwo.canMoveDown(currentPieceTwo)) {
+
+                                currentPieceTwo.moveDown();
+                                currentPieceTwo.resetYOffset();
+
+                                playerTwo.drawFallingPiece(
+                                        currentPieceTwo,
+                                        CELL_SIZE
+                                );
+                            }
+
+                            event.consume();
+                        }
+
+                        case W -> {
+
+                            if (!paused &&
+                                    !gameOver &&
+                                    extendedMode &&
+                                    playerTwo != null &&
+                                    !playerTwo.isGameOver() &&
+                                    playerTwo.getPlayerType() == PlayerType.HUMAN &&
+                                    playerTwo.canRotate(currentPieceTwo)) {
+
+                                currentPieceTwo.setShape(
+                                        currentPieceTwo.getRotatedShape()
+                                );
+
+                                AudioManager.playMoveTurnSound();
+
+                                playerTwo.drawFallingPiece(
+                                        currentPieceTwo,
+                                        CELL_SIZE
                                 );
                             }
 
@@ -879,274 +1017,429 @@ public class PlayScreen {
         stage.show();
     }
 
-    //IF AI / ENABLED is on, key press disabled
-    private static boolean isAutomatedMode() {
-        return GameSettings.getConfig().isAiEnabled()
-                || GameSettings.getConfig().getPlayerOneType() == PlayerType.EXTERNAL;
-    }
 
     // -------------------------------------------------------------
-    // LOCK PIECE INTO BOARD
+    // INDEPENDENT PLAYER UPDATES
     // -------------------------------------------------------------
 
-    private static void drawPiece(
-            Tetromino piece
-    ) {
+    private static void updatePlayerOne(long now) {
 
-        for (int r = 0;
-             r < piece.getShape().length;
-             r++) {
-
-            for (int c = 0;
-                 c < piece.getShape()[r].length;
-                 c++) {
-
-                if (piece.getShape()[r][c] == 1) {
-
-                    int boardRow =
-                            piece.getRow() + r;
-
-                    int boardCol =
-                            piece.getCol() + c;
-
-                    String colorHex =
-                            piece
-                                    .getColor()
-                                    .toString()
-                                    .replace(
-                                            "0x",
-                                            "#"
-                                    );
-
-                    cellViews[boardRow][boardCol]
-                            .setStyle(
-                                    "-fx-background-color: " +
-                                            colorHex +
-                                            ";" +
-                                            "-fx-border-color: #101010;" +
-                                            "-fx-border-width: 1;"
-                            );
-
-                    /*
-                     * Store the actual Color in the board.
-                     * This is important because colours must
-                     * remain correct when rows move down.
-                     */
-                    board[boardRow][boardCol] =
-                            piece.getColor();
-                }
-            }
+        if (playerOne.isGameOver() || currentPiece == null) {
+            return;
         }
-    }
-
-    // -------------------------------------------------------------
-    // ERASE FULL ROWS
-    // -------------------------------------------------------------
-
-    /*
-     * Detects and removes every completed row.
-     *
-     * Returns the total number of rows removed.
-     */
-    private static int eraseFullRows() {
-
-        int rowsRemoved = 0;
 
         /*
-         * Work upward from the bottom of the board.
+         * AI and External players both use the paced automated movement
+         * routine. AI gets its target locally; External gets it from the server.
          */
-        for (int row = ROWS - 1;
-             row >= 0;
-             row--) {
+        if (playerOne.getPlayerType() == PlayerType.AI ||
+                playerOne.getPlayerType() == PlayerType.EXTERNAL) {
 
-            if (isFullRow(row)) {
+            if (!playerOneAiMoving) {
+                preparePlayerOneAutomatedMove();
+            }
 
-                removeRow(row);
-
-                rowsRemoved++;
-
-                /*
-                 * A row above has now moved into this
-                 * same row position.
-                 *
-                 * Check this index again so consecutive
-                 * full rows are also removed.
-                 */
-                row++;
+            if (now - playerOneLastAiStepTime >= AI_STEP_DELAY_NANOS) {
+                playerOneLastAiStepTime = now;
+                performPlayerOneAiStep();
             }
         }
+
+        /*
+         * Automated pieces use the existing faster fall speed. Human pieces
+         * retain the normal smooth fall speed.
+         */
+        int fallSpeed =
+                playerOne.getPlayerType() == PlayerType.AI ||
+                        playerOne.getPlayerType() == PlayerType.EXTERNAL
+                        ? 5
+                        : 1;
+
+        if (playerOne.canMoveDown(currentPiece)) {
+
+            currentPiece.addYOffset(fallSpeed);
+
+            if (currentPiece.getYOffset() >= CELL_SIZE) {
+                currentPiece.resetYOffset();
+                currentPiece.moveDown();
+            }
+
+            playerOne.drawFallingPiece(
+                    currentPiece,
+                    CELL_SIZE
+            );
+
+        } else {
+            landPlayerOnePiece();
+        }
+    }
+
+
+    private static void updatePlayerTwo(long now) {
+
+        if (playerTwo.isGameOver() || currentPieceTwo == null) {
+            return;
+        }
+
+        /*
+         * Player Two follows the same controller rules as Player One so
+         * Extended Mode can independently use Human, AI, or External.
+         */
+        if (playerTwo.getPlayerType() == PlayerType.AI ||
+                playerTwo.getPlayerType() == PlayerType.EXTERNAL) {
+
+            if (!playerTwoAiMoving) {
+                preparePlayerTwoAutomatedMove();
+            }
+
+            if (now - playerTwoLastAiStepTime >= AI_STEP_DELAY_NANOS) {
+                playerTwoLastAiStepTime = now;
+                performPlayerTwoAiStep();
+            }
+        }
+
+        int fallSpeed =
+                playerTwo.getPlayerType() == PlayerType.AI ||
+                        playerTwo.getPlayerType() == PlayerType.EXTERNAL
+                        ? 5
+                        : 1;
+
+        if (playerTwo.canMoveDown(currentPieceTwo)) {
+
+            currentPieceTwo.addYOffset(fallSpeed);
+
+            if (currentPieceTwo.getYOffset() >= CELL_SIZE) {
+                currentPieceTwo.resetYOffset();
+                currentPieceTwo.moveDown();
+            }
+
+            playerTwo.drawFallingPiece(
+                    currentPieceTwo,
+                    CELL_SIZE
+            );
+
+        } else {
+            landPlayerTwoPiece();
+        }
+    }
+
+
+    // -------------------------------------------------------------
+    // PLAYER ONE AI
+    // -------------------------------------------------------------
+
+    private static void preparePlayerOneAutomatedMove() {
+
+        int[] move;
+
+        if (playerOne.getPlayerType() == PlayerType.EXTERNAL) {
+
+            /*
+             * Supply the external server with Player One's independent board,
+             * current piece, and next piece from the shared sequence.
+             */
+            Tetromino nextPiece =
+                    createPieceFromSharedSequence(
+                            playerOneSequenceIndex + 1
+                    );
+
+            move =
+                    TetrisServerConnection
+                            .getInstance()
+                            .getServerMove(
+                                    playerOne.getBoard(),
+                                    currentPiece,
+                                    nextPiece
+                            );
+
+        } else {
+
+            move =
+                    tetrisAI.findBestMove(
+                            playerOne.getBoard(),
+                            currentPiece
+                    );
+        }
+
+        playerOneAiTargetCol = move[0];
+        playerOneAiTargetRotation = move[1];
+        playerOneAiRotationsDone = 0;
+        playerOneAiMoving = true;
+    }
+
+
+    private static void performPlayerOneAiStep() {
+
+        if (playerOneAiRotationsDone < playerOneAiTargetRotation) {
+
+            if (playerOne.canRotate(currentPiece)) {
+
+                currentPiece.setShape(
+                        currentPiece.getRotatedShape()
+                );
+
+                playerOneAiRotationsDone++;
+                AudioManager.playMoveTurnSound();
+
+                playerOne.drawFallingPiece(
+                        currentPiece,
+                        CELL_SIZE
+                );
+
+                return;
+            }
+
+            playerOneAiRotationsDone =
+                    playerOneAiTargetRotation;
+        }
+
+        if (currentPiece.getCol() < playerOneAiTargetCol &&
+                playerOne.canMoveRight(currentPiece)) {
+
+            currentPiece.moveRight();
+            AudioManager.playMoveTurnSound();
+
+            playerOne.drawFallingPiece(
+                    currentPiece,
+                    CELL_SIZE
+            );
+
+            return;
+        }
+
+        if (currentPiece.getCol() > playerOneAiTargetCol &&
+                playerOne.canMoveLeft(currentPiece)) {
+
+            currentPiece.moveLeft();
+            AudioManager.playMoveTurnSound();
+
+            playerOne.drawFallingPiece(
+                    currentPiece,
+                    CELL_SIZE
+            );
+
+            return;
+        }
+
+        playerOneAiMoving = false;
+    }
+
+
+    // -------------------------------------------------------------
+    // PLAYER TWO AI
+    // -------------------------------------------------------------
+
+    private static void preparePlayerTwoAutomatedMove() {
+
+        int[] move;
+
+        if (playerTwo.getPlayerType() == PlayerType.EXTERNAL) {
+
+            /*
+             * Player Two uses its own board and sequence position while still
+             * consuming the same ordered tetromino types as Player One.
+             */
+            Tetromino nextPiece =
+                    createPieceFromSharedSequence(
+                            playerTwoSequenceIndex + 1
+                    );
+
+            move =
+                    TetrisServerConnection
+                            .getInstance()
+                            .getServerMove(
+                                    playerTwo.getBoard(),
+                                    currentPieceTwo,
+                                    nextPiece
+                            );
+
+        } else {
+
+            move =
+                    tetrisAI.findBestMove(
+                            playerTwo.getBoard(),
+                            currentPieceTwo
+                    );
+        }
+
+        playerTwoAiTargetCol = move[0];
+        playerTwoAiTargetRotation = move[1];
+        playerTwoAiRotationsDone = 0;
+        playerTwoAiMoving = true;
+    }
+
+
+    private static void performPlayerTwoAiStep() {
+
+        if (playerTwoAiRotationsDone < playerTwoAiTargetRotation) {
+
+            if (playerTwo.canRotate(currentPieceTwo)) {
+
+                currentPieceTwo.setShape(
+                        currentPieceTwo.getRotatedShape()
+                );
+
+                playerTwoAiRotationsDone++;
+                AudioManager.playMoveTurnSound();
+
+                playerTwo.drawFallingPiece(
+                        currentPieceTwo,
+                        CELL_SIZE
+                );
+
+                return;
+            }
+
+            playerTwoAiRotationsDone =
+                    playerTwoAiTargetRotation;
+        }
+
+        if (currentPieceTwo.getCol() < playerTwoAiTargetCol &&
+                playerTwo.canMoveRight(currentPieceTwo)) {
+
+            currentPieceTwo.moveRight();
+            AudioManager.playMoveTurnSound();
+
+            playerTwo.drawFallingPiece(
+                    currentPieceTwo,
+                    CELL_SIZE
+            );
+
+            return;
+        }
+
+        if (currentPieceTwo.getCol() > playerTwoAiTargetCol &&
+                playerTwo.canMoveLeft(currentPieceTwo)) {
+
+            currentPieceTwo.moveLeft();
+            AudioManager.playMoveTurnSound();
+
+            playerTwo.drawFallingPiece(
+                    currentPieceTwo,
+                    CELL_SIZE
+            );
+
+            return;
+        }
+
+        playerTwoAiMoving = false;
+    }
+
+
+    // -------------------------------------------------------------
+    // LANDING / NEXT PIECE
+    // -------------------------------------------------------------
+
+    private static void landPlayerOnePiece() {
+
+        playerOne.lockPiece(currentPiece);
+        playerOne.clearFallingPiece();
+
+        int rowsRemoved =
+                playerOne.eraseFullRows();
 
         if (rowsRemoved > 0) {
-
-            // Play the row-clear effect only when at least one row is removed.
             AudioManager.playEraseLineSound();
-
-            refreshBoardView();
+            scoreLogic.addLinesCleared(rowsRemoved);
+            scoreLabel.setText("Score: " + scoreLogic.getScore());
+            levelLabel.setText("Current Level: " + scoreLogic.getLevel());
+            linesLabel.setText("Line Erased: " + scoreLogic.getLinesErased());
         }
 
-        return rowsRemoved;
-    }
+        printBoard();
 
-    // -------------------------------------------------------------
-    // CHECK FULL ROW
-    // -------------------------------------------------------------
+        playerOneSequenceIndex++;
 
-    private static boolean isFullRow(
-            int row
-    ) {
+        Tetromino nextPiece =
+                createPieceFromSharedSequence(
+                        playerOneSequenceIndex
+                );
 
-        for (Color cell : board[row]) {
+        if (playerOne.canSpawn(nextPiece)) {
 
-            if (cell == null) {
+            currentPiece = nextPiece;
+            playerOneAiMoving = false;
 
-                return false;
+            playerOne.drawFallingPiece(
+                    currentPiece,
+                    CELL_SIZE
+            );
+
+        } else {
+
+            playerOne.setGameOver(true);
+            gameOver = true;
+            paused = false;
+
+            AudioManager.playGameFinishSound();
+
+            if (timer != null) {
+                timer.stop();
             }
-        }
 
-        return true;
+            System.out.println("PLAYER ONE GAME OVER");
+        }
     }
 
-    // -------------------------------------------------------------
-    // REMOVE ONE ROW
-    // -------------------------------------------------------------
+
+    private static void landPlayerTwoPiece() {
+
+        playerTwo.lockPiece(currentPieceTwo);
+        playerTwo.clearFallingPiece();
+
+        int rowsRemoved =
+                playerTwo.eraseFullRows();
+
+        if (rowsRemoved > 0) {
+            AudioManager.playEraseLineSound();
+        }
+
+        playerTwoSequenceIndex++;
+
+        Tetromino nextPiece =
+                createPieceFromSharedSequence(
+                        playerTwoSequenceIndex
+                );
+
+        if (playerTwo.canSpawn(nextPiece)) {
+
+            currentPieceTwo = nextPiece;
+            playerTwoAiMoving = false;
+
+            playerTwo.drawFallingPiece(
+                    currentPieceTwo,
+                    CELL_SIZE
+            );
+
+        } else {
+
+            playerTwo.setGameOver(true);
+            playerTwo.clearFallingPiece();
+
+            System.out.println("PLAYER TWO GAME OVER");
+        }
+    }
+
 
     /*
-     * Removes a completed row and shifts everything
-     * above it downward.
-     *
-     * The Color objects themselves are moved, which
-     * preserves the original tetromino colours.
+     * Creates a simple heading for each field in Extended Mode.
+     * Keeping the styling here avoids duplicating label setup.
      */
-    private static void removeRow(
-            int row
+    private static Label createPlayerLabel(
+            String text
     ) {
 
-        for (int r = row;
-             r > 0;
-             r--) {
+        Label label =
+                new Label(text);
 
-            for (int col = 0;
-                 col < COLS;
-                 col++) {
+        label.setStyle(
+                "-fx-font-size: 16px;" +
+                        "-fx-font-weight: bold;"
+        );
 
-                board[r][col] =
-                        board[r - 1][col];
-            }
-        }
-
-        // Clear the newly-created top row.
-        for (int col = 0;
-             col < COLS;
-             col++) {
-
-            board[0][col] = null;
-        }
+        return label;
     }
 
-    // -------------------------------------------------------------
-    // REFRESH BOARD AFTER ROW REMOVAL
-    // -------------------------------------------------------------
-
-    private static void refreshBoardView() {
-
-        for (int row = 0;
-             row < ROWS;
-             row++) {
-
-            for (int col = 0;
-                 col < COLS;
-                 col++) {
-
-                Color cellColor =
-                        board[row][col];
-
-                if (cellColor == null) {
-
-                    cellViews[row][col]
-                            .setStyle(
-                                    "-fx-background-color: #101010;" +
-                                            "-fx-border-color: #101010;" +
-                                            "-fx-border-width: 1;"
-                            );
-
-                } else {
-
-                    String colorHex =
-                            cellColor
-                                    .toString()
-                                    .replace(
-                                            "0x",
-                                            "#"
-                                    );
-
-                    cellViews[row][col]
-                            .setStyle(
-                                    "-fx-background-color: " +
-                                            colorHex +
-                                            ";" +
-                                            "-fx-border-color: #101010;" +
-                                            "-fx-border-width: 1;"
-                            );
-                }
-            }
-        }
-    }
-
-    // -------------------------------------------------------------
-    // DRAW CURRENT FALLING PIECE
-    // -------------------------------------------------------------
-
-    private static void drawFallingPiece(
-            Tetromino piece,
-            Pane pieceLayer
-    ) {
-
-        pieceLayer
-                .getChildren()
-                .clear();
-
-        for (int r = 0;
-             r < piece.getShape().length;
-             r++) {
-
-            for (int c = 0;
-                 c < piece.getShape()[r].length;
-                 c++) {
-
-                if (piece.getShape()[r][c] == 1) {
-                    double x =
-                            (piece.getCol() + c)
-                                    * CELL_SIZE;
-                    double y =
-                            (piece.getRow() + r)
-                                    * CELL_SIZE
-                                    + piece.getYOffset();
-
-                    Rectangle rect =
-                            new Rectangle(
-                                    CELL_SIZE,
-                                    CELL_SIZE
-                            );
-
-                    rect.setX(x);
-                    rect.setY(y);
-
-                    rect.setFill(
-                            piece.getColor()
-                    );
-                    rect.setStroke(
-                            Color.web("#101010")
-                    );
-
-                    rect.setStrokeWidth(1);
-
-                    pieceLayer
-                            .getChildren()
-                            .add(rect);
-                }
-            }
-        }
-    }
 
     // -------------------------------------------------------------
     // PRINT BOARD TO TERMINAL
@@ -1174,289 +1467,79 @@ public class PlayScreen {
     }
 
     // -------------------------------------------------------------
-// RANDOM TETROMINO
-// -------------------------------------------------------------
-
-    private static Tetromino spawnRandomPiece() {
-
-        /*
-         * Pass the configured board width to the factory so the
-         * tetromino spawn position can adapt to dynamic field sizes.
-         */
-        return tetrominoFactory.createRandomPiece(COLS);
-    }
-
+    // SHARED TETROMINO SEQUENCE
     // -------------------------------------------------------------
-// CAN MOVE DOWN?
-// -------------------------------------------------------------
 
-    private static boolean canMoveDown(
-            Tetromino piece
+    /*
+     * Creates an independent tetromino object for the requested
+     * position in the common sequence.
+     *
+     * A random type is generated only when that sequence position
+     * does not exist yet. Therefore both players receive the same
+     * type at index 0, 1, 2, and so on.
+     */
+    private static Tetromino createPieceFromSharedSequence(
+            int sequenceIndex
     ) {
 
-        for (int r = 0;
-             r < piece.getShape().length;
-             r++) {
+        while (sharedSequence.size() <= sequenceIndex) {
 
-            for (int c = 0;
-                 c < piece.getShape()[r].length;
-                 c++) {
-
-                if (piece.getShape()[r][c] == 1) {
-
-                    int boardRow =
-                            piece.getRow()
-                                    + r
-                                    + 1;
-
-                    int boardCol =
-                            piece.getCol()
-                                    + c;
-
-                    /*
-                     * Check all configured board boundaries before
-                     * accessing the board array. This keeps movement
-                     * safe when smaller dynamic field sizes are used.
-                     */
-                    if (boardRow < 0 ||
-                            boardRow >= ROWS ||
-                            boardCol < 0 ||
-                            boardCol >= COLS) {
-
-                        return false;
-                    }
-
-                    // Hit another piece.
-                    if (board[boardRow][boardCol]
-                            != null) {
-
-                        return false;
-                    }
-                }
-            }
+            sharedSequence.add(
+                    tetrominoFactory.createRandomType()
+            );
         }
 
-        return true;
-    }
+        TetrominoType type =
+                sharedSequence.get(sequenceIndex);
 
-    // -------------------------------------------------------------
-    // CAN MOVE LEFT
-    // -------------------------------------------------------------
-
-    private static boolean canMoveLeft(
-            Tetromino piece
-    ) {
-
-        for (int r = 0;
-             r < piece.getShape().length;
-             r++) {
-
-            for (int c = 0;
-                 c < piece.getShape()[r].length;
-                 c++) {
-
-                if (piece.getShape()[r][c] == 1) {
-
-                    int boardRow =
-                            piece.getRow() + r;
-
-                    int boardCol =
-                            piece.getCol()
-                                    + c
-                                    - 1;
-
-                    if (boardCol < 0) {
-                        return false;
-                    }
-
-                    if (board[boardRow][boardCol]
-                            != null) {
-
-                        return false;
-                    }
-                }
-            }
-        }
-
-        return true;
-    }
-
-    // -------------------------------------------------------------
-    // MOVE RIGHT
-    // -------------------------------------------------------------
-
-    private static boolean canMoveRight(
-            Tetromino piece
-    ) {
-
-        for (int r = 0;
-             r < piece.getShape().length;
-             r++) {
-
-            for (int c = 0;
-                 c < piece.getShape()[r].length;
-                 c++) {
-
-                if (piece.getShape()[r][c] == 1) {
-
-                    int boardRow =
-                            piece.getRow() + r;
-
-                    int boardCol =
-                            piece.getCol()
-                                    + c
-                                    + 1;
-
-                    if (boardCol >= COLS) {
-                        return false;
-                    }
-
-                    if (board[boardRow][boardCol]
-                            != null) {
-
-                        return false;
-                    }
-                }
-            }
-        }
-
-        return true;
-    }
-
-    // -------------------------------------------------------------
-    // CAN ROTATE?
-    // -------------------------------------------------------------
-
-    private static boolean canRotate(
-            Tetromino piece
-    ) {
-
-        int[][] rotatedShape =
-                piece.getRotatedShape();
-
-        for (int r = 0;
-             r < rotatedShape.length;
-             r++) {
-
-            for (int c = 0;
-                 c < rotatedShape[r].length;
-                 c++) {
-
-                if (rotatedShape[r][c] == 1) {
-
-                    int boardRow =
-                            piece.getRow() + r;
-
-                    int boardCol =
-                            piece.getCol() + c;
-
-                    if (boardCol < 0 ||
-                            boardCol >= COLS) {
-
-                        return false;
-                    }
-
-                    if (boardRow >= ROWS) {
-
-                        return false;
-                    }
-
-                    if (board[boardRow][boardCol]
-                            != null) {
-
-                        return false;
-                    }
-                }
-            }
-        }
-
-        return true;
+        return tetrominoFactory.createPiece(
+                type,
+                COLS
+        );
     }
 
 
+
     // -------------------------------------------------------------
-// CAN NEW PIECE SPAWN?
-// -------------------------------------------------------------
-
-    private static boolean canSpawn(
-            Tetromino piece
-    ) {
-
-        for (int r = 0;
-             r < piece.getShape().length;
-             r++) {
-
-            for (int c = 0;
-                 c < piece.getShape()[r].length;
-                 c++) {
-
-                if (piece.getShape()[r][c] == 1) {
-
-                    int boardRow =
-                            piece.getRow() + r;
-
-                    int boardCol =
-                            piece.getCol() + c;
-
-                    /*
-                     * Check the configured board boundaries before
-                     * accessing the board array. This prevents pieces
-                     * from spawning outside smaller dynamic fields.
-                     */
-                    if (boardRow < 0 ||
-                            boardRow >= ROWS ||
-                            boardCol < 0 ||
-                            boardCol >= COLS) {
-
-                        return false;
-                    }
-
-                    if (board[boardRow][boardCol]
-                            != null) {
-
-                        return false;
-                    }
-                }
-            }
-        }
-
-        return true;
-    }
-
-    //HIGH SCORE ENTRY
+    // HIGH SCORE ENTRY
+    // -------------------------------------------------------------
     private static void checkAndSaveHighScore(Stage stage) {
 
         List<ScoreEntry> scores = HighScoreManager.load();
-
         int finalScore = scoreLogic.getScore();
 
         boolean qualifies = scores.size() < 10 ||
                 finalScore > scores.get(scores.size() - 1).score();
 
         if (qualifies) {
-
             TextInputDialog nameDialog = new TextInputDialog();
             nameDialog.setTitle("High Score");
             nameDialog.setHeaderText(null);
-            nameDialog.setContentText("Player 1's score is in the top scores, please enter player 1's name:");
+            nameDialog.setContentText(
+                    "Player 1's score is in the top scores, please enter player 1's name:"
+            );
 
             Optional<String> result = nameDialog.showAndWait();
-
             String playerName = result.isPresent() && !result.get().isBlank()
                     ? result.get()
                     : "Player";
 
+            GameConfig config = GameSettings.getConfig();
+            String modeDescription = config.isExtendedMode()
+                    ? "Extended"
+                    : "Single";
+
             String configDescription =
                     COLS + "x" + ROWS +
-                            "(" + GameSettings.getConfig().getGameLevel() + ") " +
-                            GameSettings.getConfig().getPlayerOneType() + " Single";
+                            "(" + config.getGameLevel() + ") " +
+                            config.getPlayerOneType() + " " +
+                            modeDescription;
 
             scores.add(new ScoreEntry(playerName, finalScore, configDescription));
-
-            scores.sort((a, b) -> b.score() - a.score());
+            scores.sort((a, b) -> Integer.compare(b.score(), a.score()));
 
             if (scores.size() > 10) {
-                scores = scores.subList(0, 10);
+                scores = new ArrayList<>(scores.subList(0, 10));
             }
 
             HighScoreManager.save(scores);
@@ -1465,7 +1548,4 @@ public class PlayScreen {
         MainMenu.show(stage);
     }
 
-
 }
-
-
