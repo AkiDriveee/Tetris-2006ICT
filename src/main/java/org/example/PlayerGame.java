@@ -10,6 +10,9 @@ import javafx.scene.shape.Rectangle;
 import org.example.PlayerType;
 import org.example.pieces.Tetromino;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /*
  * Represents the independent game state for one Tetris player.
  *
@@ -34,6 +37,12 @@ public class PlayerGame {
 
     private PlayerType playerType;
     private boolean gameOver;
+
+    /*
+     * Observer Pattern: registered listeners receive gameplay events without
+     * PlayerGame depending on concrete observer implementations.
+     */
+    private final List<GameEventObserver> observers = new ArrayList<>();
 
     /*
      * Create an independent game state using the configured
@@ -308,6 +317,26 @@ public class PlayerGame {
             boolean gameOver
     ) {
         this.gameOver = gameOver;
+    }
+
+    // ---------------------------------------------------------
+    // OBSERVER PATTERN
+    // ---------------------------------------------------------
+
+    public void addObserver(GameEventObserver observer) {
+        if (observer != null && !observers.contains(observer)) {
+            observers.add(observer);
+        }
+    }
+
+    public void removeObserver(GameEventObserver observer) {
+        observers.remove(observer);
+    }
+
+    private void notifyLinesCleared(int rowsRemoved) {
+        for (GameEventObserver observer : new ArrayList<>(observers)) {
+            observer.onLinesCleared(this, rowsRemoved);
+        }
     }
 
     // ---------------------------------------------------------
@@ -620,6 +649,9 @@ public class PlayerGame {
         if (rowsRemoved > 0) {
 
             refreshBoardView();
+
+            // Notify observers only after the board state is fully updated.
+            notifyLinesCleared(rowsRemoved);
         }
 
         return rowsRemoved;

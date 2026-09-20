@@ -25,12 +25,34 @@ public final class HighScoreManager {
         }
 
         try {
-            return OBJECT_MAPPER.readValue(
-                    file,
-                    new TypeReference<List<ScoreEntry>>() {}
-            );
+
+            List<ScoreEntry> scores =
+                    OBJECT_MAPPER.readValue(
+                            file,
+                            new TypeReference<List<ScoreEntry>>() {}
+                    );
+
+            /*
+             * Java Stream:
+             * Remove any invalid null entries loaded from the JSON file.
+             * The result is returned as a new mutable ArrayList because
+             * the high-score screen later sorts and updates this list.
+             */
+            return scores.stream()
+                    .filter(score -> score != null)
+                    .collect(
+                            ArrayList::new,
+                            ArrayList::add,
+                            ArrayList::addAll
+                    );
+
         } catch (IOException e) {
-            System.out.println("Could not load high scores: " + e.getMessage());
+
+            System.out.println(
+                    "Could not load high scores: " +
+                            e.getMessage()
+            );
+
             return new ArrayList<>();
         }
     }
@@ -38,11 +60,20 @@ public final class HighScoreManager {
     public static void save(List<ScoreEntry> scores) {
 
         try {
+
             OBJECT_MAPPER
                     .writerWithDefaultPrettyPrinter()
-                    .writeValue(new File(SCORES_FILE), scores);
+                    .writeValue(
+                            new File(SCORES_FILE),
+                            scores
+                    );
+
         } catch (IOException e) {
-            System.out.println("Could not save high scores: " + e.getMessage());
+
+            System.out.println(
+                    "Could not save high scores: " +
+                            e.getMessage()
+            );
         }
     }
 

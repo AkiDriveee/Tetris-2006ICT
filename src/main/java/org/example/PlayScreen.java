@@ -209,6 +209,9 @@ public class PlayScreen {
                         ROWS
                 );
 
+        // Observer Pattern: subscribe to Player One gameplay events.
+        playerOne.addObserver(new GameEventLogger("Player 1"));
+
         /*
          * Create an independent Player Two game state only for
          * Extended Mode. Single-player mode therefore keeps the
@@ -225,6 +228,11 @@ public class PlayScreen {
                         ROWS
                 )
                         : null;
+
+        if (playerTwo != null) {
+            // Player Two publishes its events independently.
+            playerTwo.addObserver(new GameEventLogger("Player 2"));
+        }
 
         /*
          * Keep a temporary reference to Player One's board for the
@@ -865,14 +873,20 @@ public class PlayScreen {
                                     playerOne.getPlayerType() == PlayerType.HUMAN &&
                                     playerOne.canMoveDown(currentPiece)) {
 
-                                currentPiece.moveDown();
+                                GameCommand command =
+                                        new MovePieceCommand(
+                                                () -> {
+                                                    currentPiece.moveDown();
+                                                    currentPiece.resetYOffset();
+                                                },
+                                                () -> playerOne.drawFallingPiece(
+                                                        currentPiece,
+                                                        CELL_SIZE
+                                                ),
+                                                false
+                                        );
 
-                                currentPiece.resetYOffset();
-
-                                playerOne.drawFallingPiece(
-                                        currentPiece,
-                                        CELL_SIZE
-                                );
+                                command.execute();
                             }
 
                             event.consume();
@@ -889,14 +903,17 @@ public class PlayScreen {
                                     playerOne.getPlayerType() == PlayerType.HUMAN &&
                                     playerOne.canMoveLeft(currentPiece)) {
 
-                                currentPiece.moveLeft();
-                                // Play movement sound when the piece moves successfully.
-                                AudioManager.playMoveTurnSound();
+                                GameCommand command =
+                                        new MovePieceCommand(
+                                                currentPiece::moveLeft,
+                                                () -> playerOne.drawFallingPiece(
+                                                        currentPiece,
+                                                        CELL_SIZE
+                                                ),
+                                                true
+                                        );
 
-                                playerOne.drawFallingPiece(
-                                        currentPiece,
-                                        CELL_SIZE
-                                );
+                                command.execute();
                             }
 
                             event.consume();
@@ -913,14 +930,17 @@ public class PlayScreen {
                                     playerOne.getPlayerType() == PlayerType.HUMAN &&
                                     playerOne.canMoveRight(currentPiece)) {
 
-                                currentPiece.moveRight();
-                                // Play movement sound when the piece moves successfully.
-                                AudioManager.playMoveTurnSound();
+                                GameCommand command =
+                                        new MovePieceCommand(
+                                                currentPiece::moveRight,
+                                                () -> playerOne.drawFallingPiece(
+                                                        currentPiece,
+                                                        CELL_SIZE
+                                                ),
+                                                true
+                                        );
 
-                                playerOne.drawFallingPiece(
-                                        currentPiece,
-                                        CELL_SIZE
-                                );
+                                command.execute();
                             }
 
                             event.consume();
@@ -937,17 +957,19 @@ public class PlayScreen {
                                     playerOne.getPlayerType() == PlayerType.HUMAN &&
                                     playerOne.canRotate(currentPiece)) {
 
-                                currentPiece.setShape(
-                                        currentPiece
-                                                .getRotatedShape()
-                                );
-                                // Play rotation sound after a successful turn.
-                                AudioManager.playMoveTurnSound();
+                                GameCommand command =
+                                        new MovePieceCommand(
+                                                () -> currentPiece.setShape(
+                                                        currentPiece.getRotatedShape()
+                                                ),
+                                                () -> playerOne.drawFallingPiece(
+                                                        currentPiece,
+                                                        CELL_SIZE
+                                                ),
+                                                true
+                                        );
 
-                                playerOne.drawFallingPiece(
-                                        currentPiece,
-                                        CELL_SIZE
-                                );
+                                command.execute();
                             }
 
                             event.consume();
@@ -968,13 +990,17 @@ public class PlayScreen {
                                     playerTwo.getPlayerType() == PlayerType.HUMAN &&
                                     playerTwo.canMoveLeft(currentPieceTwo)) {
 
-                                currentPieceTwo.moveLeft();
-                                AudioManager.playMoveTurnSound();
+                                GameCommand command =
+                                        new MovePieceCommand(
+                                                currentPieceTwo::moveLeft,
+                                                () -> playerTwo.drawFallingPiece(
+                                                        currentPieceTwo,
+                                                        CELL_SIZE
+                                                ),
+                                                true
+                                        );
 
-                                playerTwo.drawFallingPiece(
-                                        currentPieceTwo,
-                                        CELL_SIZE
-                                );
+                                command.execute();
                             }
 
                             event.consume();
@@ -990,13 +1016,17 @@ public class PlayScreen {
                                     playerTwo.getPlayerType() == PlayerType.HUMAN &&
                                     playerTwo.canMoveRight(currentPieceTwo)) {
 
-                                currentPieceTwo.moveRight();
-                                AudioManager.playMoveTurnSound();
+                                GameCommand command =
+                                        new MovePieceCommand(
+                                                currentPieceTwo::moveRight,
+                                                () -> playerTwo.drawFallingPiece(
+                                                        currentPieceTwo,
+                                                        CELL_SIZE
+                                                ),
+                                                true
+                                        );
 
-                                playerTwo.drawFallingPiece(
-                                        currentPieceTwo,
-                                        CELL_SIZE
-                                );
+                                command.execute();
                             }
 
                             event.consume();
@@ -1016,13 +1046,20 @@ public class PlayScreen {
                                     playerTwo.getPlayerType() == PlayerType.HUMAN &&
                                     playerTwo.canMoveDown(currentPieceTwo)) {
 
-                                currentPieceTwo.moveDown();
-                                currentPieceTwo.resetYOffset();
+                                GameCommand command =
+                                        new MovePieceCommand(
+                                                () -> {
+                                                    currentPieceTwo.moveDown();
+                                                    currentPieceTwo.resetYOffset();
+                                                },
+                                                () -> playerTwo.drawFallingPiece(
+                                                        currentPieceTwo,
+                                                        CELL_SIZE
+                                                ),
+                                                false
+                                        );
 
-                                playerTwo.drawFallingPiece(
-                                        currentPieceTwo,
-                                        CELL_SIZE
-                                );
+                                command.execute();
                             }
 
                             event.consume();
@@ -1038,16 +1075,19 @@ public class PlayScreen {
                                     playerTwo.getPlayerType() == PlayerType.HUMAN &&
                                     playerTwo.canRotate(currentPieceTwo)) {
 
-                                currentPieceTwo.setShape(
-                                        currentPieceTwo.getRotatedShape()
-                                );
+                                GameCommand command =
+                                        new MovePieceCommand(
+                                                () -> currentPieceTwo.setShape(
+                                                        currentPieceTwo.getRotatedShape()
+                                                ),
+                                                () -> playerTwo.drawFallingPiece(
+                                                        currentPieceTwo,
+                                                        CELL_SIZE
+                                                ),
+                                                true
+                                        );
 
-                                AudioManager.playMoveTurnSound();
-
-                                playerTwo.drawFallingPiece(
-                                        currentPieceTwo,
-                                        CELL_SIZE
-                                );
+                                command.execute();
                             }
 
                             event.consume();
