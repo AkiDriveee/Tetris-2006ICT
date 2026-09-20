@@ -113,6 +113,21 @@ public class PlayScreen {
     private static final long AI_STEP_DELAY_NANOS =
             300_000_000L;
 
+    /*
+     * External players are driven by the target returned from TetrisServer.
+     * Use a shorter controller step so the piece can rotate/move to the
+     * requested position before descending, matching the tutor demo more
+     * closely without changing the existing AI speed.
+     */
+    private static final long EXTERNAL_STEP_DELAY_NANOS =
+            100_000_000L;
+
+    /*
+     * Prevent the missing-server warning from appearing repeatedly while
+     * the same PlayScreen is open.
+     */
+    private static boolean externalServerWarningShown = false;
+
     // ---------------------------------------------------------
     // PLAYER ONE SCORE STATE
     // ---------------------------------------------------------
@@ -121,14 +136,32 @@ public class PlayScreen {
     private static Label levelLabel;
     private static Label linesLabel;
 
+    // Play-screen information labels for both players.
+    private static Label musicStatusLabel;
+    private static Label soundStatusLabel;
+    private static Label playerOneNextLabel;
+    private static Pane playerOneNextPreview;
+    private static Label playerTwoScoreLabel;
+    private static Label playerTwoLevelLabel;
+    private static Label playerTwoLinesLabel;
+    private static Label playerTwoNextLabel;
+    private static Pane playerTwoNextPreview;
+    private static ScoreLogic playerTwoScoreLogic;
+
     public static void show(Stage stage) {
 
         // Reset state whenever a new game starts.
         paused = false;
         gameOver = false;
+        externalServerWarningShown = false;
 
         // Start Player One's score from the configured game level.
         scoreLogic = new ScoreLogic(
+                GameSettings.getConfig().getGameLevel()
+        );
+
+        // Player Two needs independent score/level/line state in Extended Mode.
+        playerTwoScoreLogic = new ScoreLogic(
                 GameSettings.getConfig().getGameLevel()
         );
 
@@ -216,37 +249,35 @@ public class PlayScreen {
                         ? playerTwo.createGameField(CELL_SIZE)
                         : null;
 
-        Label playerOneLabel =
-                createPlayerLabel("Player One");
+        VBox playerOneInfo = createPlayerInfoPanel(
+                "Game Info (Player 1)",
+                playerOne.getPlayerType(),
+                config.getGameLevel(),
+                false
+        );
 
-        VBox playerOneArea =
-                new VBox(
-                        8,
-                        playerOneLabel,
-                        boardStack
-                );
+        /*
+         * Group the information panel and board inside one outlined card.
+         * This keeps each player's complete game area visually together.
+         */
+        HBox playerOneArea = createPlayerGameArea(playerOneInfo, boardStack);
 
-        playerOneArea.setAlignment(Pos.CENTER);
-
-        HBox boardsArea =
-                new HBox(24);
-
+        HBox boardsArea = new HBox(24);
         boardsArea.setAlignment(Pos.CENTER);
         boardsArea.getChildren().add(playerOneArea);
 
+        HBox playerTwoArea = null;
+
         if (extendedMode) {
 
-            Label playerTwoLabel =
-                    createPlayerLabel("Player Two");
+            VBox playerTwoInfo = createPlayerInfoPanel(
+                    "Game Info (Player 2)",
+                    playerTwo.getPlayerType(),
+                    config.getGameLevel(),
+                    true
+            );
 
-            VBox playerTwoArea =
-                    new VBox(
-                            8,
-                            playerTwoLabel,
-                            boardStackTwo
-                    );
-
-            playerTwoArea.setAlignment(Pos.CENTER);
+            playerTwoArea = createPlayerGameArea(playerTwoInfo, boardStackTwo);
             boardsArea.getChildren().add(playerTwoArea);
         }
 
@@ -270,6 +301,8 @@ public class PlayScreen {
                         playerTwoSequenceIndex
                 )
                         : null;
+
+        updateNextTetrominoLabels();
 
         // ---------------------------------------------------------
         // PAUSE MESSAGE
@@ -384,39 +417,34 @@ public class PlayScreen {
         root.setCenter(boardContainer);
 
         // ---------------------------------------------------------
-        // SCORE DISPLAY
+        // MUSIC / SOUND STATUS
         // ---------------------------------------------------------
-        scoreLabel = new Label("Score: 0");
-        levelLabel = new Label(
-                "Current Level: " + scoreLogic.getLevel()
-        );
-        linesLabel = new Label("Line Erased: 0");
+        musicStatusLabel = new Label();
+        soundStatusLabel = new Label();
+        updateAudioStatusLabels();
 
-        scoreLabel.setStyle(
-                "-fx-text-fill: white;" +
-                        "-fx-font-size: 18px;" +
-                        "-fx-font-weight: bold;"
+        String statusStyle =
+                "-fx-font-size: 15px;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-text-fill: #222222;";
+
+        musicStatusLabel.setStyle(statusStyle);
+        soundStatusLabel.setStyle(statusStyle);
+
+        HBox audioStatus = new HBox(18, musicStatusLabel, soundStatusLabel);
+        audioStatus.setAlignment(Pos.CENTER);
+
+        Label playHeading = new Label("Play");
+        playHeading.setStyle(
+                "-fx-font-size: 26px;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-text-fill: #222222;"
         );
 
-        levelLabel.setStyle(
-                "-fx-text-fill: white;" +
-                        "-fx-font-size: 16px;"
-        );
-
-        linesLabel.setStyle(
-                "-fx-text-fill: white;" +
-                        "-fx-font-size: 16px;"
-        );
-
-        VBox scoreBox = new VBox(
-                10, scoreLabel, levelLabel, linesLabel
-        );
-        scoreBox.setPadding(new Insets(15));
-        scoreBox.setStyle(
-                "-fx-background-color: rgba(0,0,0,0.5);" +
-                        "-fx-background-radius: 10;"
-        );
-        root.setRight(scoreBox);
+        VBox topArea = new VBox(4, playHeading, audioStatus);
+        topArea.setAlignment(Pos.CENTER);
+        topArea.setPadding(new Insets(10, 0, 8, 0));
+        root.setTop(topArea);
 
         // ---------------------------------------------------------
         // BACK BUTTON
@@ -578,10 +606,12 @@ public class PlayScreen {
         double boardGap =
                 extendedMode ? 24 : 0;
 
+        double infoPanelWidth = 220;
+
         double unscaledBoardsWidth =
                 extendedMode
-                        ? (boardWidth * 2) + boardGap
-                        : boardWidth;
+                        ? ((boardWidth + infoPanelWidth) * 2) + boardGap
+                        : boardWidth + infoPanelWidth;
 
         double availableBoardHeight =
                 screenBounds.getHeight() - 210;
@@ -623,30 +653,27 @@ public class PlayScreen {
          * Give each labelled player area the visible dimensions so the
          * two-board HBox does not reserve the original unscaled sizes.
          */
-        playerOneArea.setMinWidth(displayedBoardWidth);
-        playerOneArea.setPrefWidth(displayedBoardWidth);
-        playerOneArea.setMaxWidth(displayedBoardWidth);
+        playerOneArea.setMinWidth(displayedBoardWidth + infoPanelWidth);
+        playerOneArea.setPrefWidth(displayedBoardWidth + infoPanelWidth);
+        playerOneArea.setMaxWidth(displayedBoardWidth + infoPanelWidth);
 
-        if (extendedMode) {
-            VBox playerTwoArea =
-                    (VBox) boardsArea.getChildren().get(1);
-
-            playerTwoArea.setMinWidth(displayedBoardWidth);
-            playerTwoArea.setPrefWidth(displayedBoardWidth);
-            playerTwoArea.setMaxWidth(displayedBoardWidth);
+        if (extendedMode && playerTwoArea != null) {
+            playerTwoArea.setMinWidth(displayedBoardWidth + infoPanelWidth);
+            playerTwoArea.setPrefWidth(displayedBoardWidth + infoPanelWidth);
+            playerTwoArea.setMaxWidth(displayedBoardWidth + infoPanelWidth);
         }
 
         double displayedBoardsWidth =
                 extendedMode
-                        ? (displayedBoardWidth * 2) + boardGap
-                        : displayedBoardWidth;
+                        ? ((displayedBoardWidth + infoPanelWidth) * 2) + boardGap
+                        : displayedBoardWidth + infoPanelWidth;
 
         /*
-         * Include the player label above the board while reserving only
-         * the visible scaled board height in the centre layout.
+         * Player One / Player Two are already identified inside each
+         * Game Info panel, so no separate heading height is required.
          */
         double displayedAreaHeight =
-                displayedBoardHeight + 35;
+                displayedBoardHeight;
 
         boardContainer.setMinSize(
                 displayedBoardsWidth,
@@ -677,12 +704,17 @@ public class PlayScreen {
                         )
                 );
 
+        /*
+         * Reserve vertical room for the Play/Music/Sound header and the
+         * bottom Back button. The previous +120 allowance was too small,
+         * so the Back button could be pushed below the visible window.
+         */
         double windowHeight =
                 Math.min(
                         screenBounds.getHeight() - 40,
                         Math.max(
                                 600,
-                                displayedAreaHeight + 120
+                                displayedAreaHeight + 210
                         )
                 );
 
@@ -773,6 +805,7 @@ public class PlayScreen {
 
                             // Save the preference so it persists after restart.
                             GameSettings.save();
+                            updateAudioStatusLabels();
 
                             System.out.println(
                                     "Music: " +
@@ -801,6 +834,7 @@ public class PlayScreen {
 
                             // Persist the updated sound preference.
                             GameSettings.save();
+                            updateAudioStatusLabels();
 
                             System.out.println(
                                     "Sound: " +
@@ -1028,12 +1062,40 @@ public class PlayScreen {
             return;
         }
 
+        PlayerType playerType = playerOne.getPlayerType();
+
         /*
-         * AI and External players both use the paced automated movement
-         * routine. AI gets its target locally; External gets it from the server.
+         * External mode follows the server's requested rotation and X position.
+         * Once aligned, each controller step moves the piece down one row.
+         * This avoids the previous problem where the piece was falling quickly
+         * at the same time as it was still trying to reach the server target.
          */
-        if (playerOne.getPlayerType() == PlayerType.AI ||
-                playerOne.getPlayerType() == PlayerType.EXTERNAL) {
+        if (playerType == PlayerType.EXTERNAL) {
+
+            if (!playerOneAiMoving) {
+                preparePlayerOneAutomatedMove();
+            }
+
+            if (playerOneAiMoving) {
+
+                if (now - playerOneLastAiStepTime >= EXTERNAL_STEP_DELAY_NANOS) {
+                    playerOneLastAiStepTime = now;
+                    performPlayerOneExternalStep();
+                }
+
+                return;
+            }
+
+            /*
+             * If TetrisServer is unavailable, keep the game alive and let
+             * the tetromino fall at normal human speed instead of freezing.
+             */
+        }
+
+        /*
+         * Keep the existing local AI behaviour unchanged.
+         */
+        if (playerType == PlayerType.AI) {
 
             if (!playerOneAiMoving) {
                 preparePlayerOneAutomatedMove();
@@ -1045,13 +1107,8 @@ public class PlayScreen {
             }
         }
 
-        /*
-         * Automated pieces use the existing faster fall speed. Human pieces
-         * retain the normal smooth fall speed.
-         */
         int fallSpeed =
-                playerOne.getPlayerType() == PlayerType.AI ||
-                        playerOne.getPlayerType() == PlayerType.EXTERNAL
+                playerType == PlayerType.AI
                         ? 5
                         : 1;
 
@@ -1074,19 +1131,40 @@ public class PlayScreen {
         }
     }
 
-
     private static void updatePlayerTwo(long now) {
 
         if (playerTwo.isGameOver() || currentPieceTwo == null) {
             return;
         }
 
+        PlayerType playerType = playerTwo.getPlayerType();
+
         /*
-         * Player Two follows the same controller rules as Player One so
-         * Extended Mode can independently use Human, AI, or External.
+         * Player Two External uses the same server-driven controller as
+         * Player One, but operates on its own board and tetromino state.
          */
-        if (playerTwo.getPlayerType() == PlayerType.AI ||
-                playerTwo.getPlayerType() == PlayerType.EXTERNAL) {
+        if (playerType == PlayerType.EXTERNAL) {
+
+            if (!playerTwoAiMoving) {
+                preparePlayerTwoAutomatedMove();
+            }
+
+            if (playerTwoAiMoving) {
+
+                if (now - playerTwoLastAiStepTime >= EXTERNAL_STEP_DELAY_NANOS) {
+                    playerTwoLastAiStepTime = now;
+                    performPlayerTwoExternalStep();
+                }
+
+                return;
+            }
+
+            /*
+             * Missing server: Player Two also continues falling normally.
+             */
+        }
+
+        if (playerType == PlayerType.AI) {
 
             if (!playerTwoAiMoving) {
                 preparePlayerTwoAutomatedMove();
@@ -1099,8 +1177,7 @@ public class PlayScreen {
         }
 
         int fallSpeed =
-                playerTwo.getPlayerType() == PlayerType.AI ||
-                        playerTwo.getPlayerType() == PlayerType.EXTERNAL
+                playerType == PlayerType.AI
                         ? 5
                         : 1;
 
@@ -1123,7 +1200,6 @@ public class PlayScreen {
         }
     }
 
-
     // -------------------------------------------------------------
     // PLAYER ONE AI
     // -------------------------------------------------------------
@@ -1143,14 +1219,21 @@ public class PlayScreen {
                             playerOneSequenceIndex + 1
                     );
 
+            TetrisServerConnection serverConnection =
+                    TetrisServerConnection.getInstance();
+
             move =
-                    TetrisServerConnection
-                            .getInstance()
-                            .getServerMove(
-                                    playerOne.getBoard(),
-                                    currentPiece,
-                                    nextPiece
-                            );
+                    serverConnection.getServerMove(
+                            playerOne.getBoard(),
+                            currentPiece,
+                            nextPiece
+                    );
+
+            if (!serverConnection.wasLastRequestSuccessful()) {
+                playerOneAiMoving = false;
+                showExternalServerWarning();
+                return;
+            }
 
         } else {
 
@@ -1225,6 +1308,81 @@ public class PlayScreen {
     }
 
 
+    /*
+     * Applies one server-controlled action for Player One.
+     * Rotation is completed first, then horizontal positioning,
+     * then the piece descends one row. A new server request is made
+     * only after the piece lands and the next piece is spawned.
+     */
+    private static void performPlayerOneExternalStep() {
+
+        if (playerOneAiRotationsDone < playerOneAiTargetRotation) {
+
+            if (playerOne.canRotate(currentPiece)) {
+
+                currentPiece.setShape(
+                        currentPiece.getRotatedShape()
+                );
+
+                playerOneAiRotationsDone++;
+                AudioManager.playMoveTurnSound();
+
+                playerOne.drawFallingPiece(
+                        currentPiece,
+                        CELL_SIZE
+                );
+
+                return;
+            }
+
+            playerOneAiRotationsDone =
+                    playerOneAiTargetRotation;
+        }
+
+        if (currentPiece.getCol() < playerOneAiTargetCol &&
+                playerOne.canMoveRight(currentPiece)) {
+
+            currentPiece.moveRight();
+            AudioManager.playMoveTurnSound();
+
+            playerOne.drawFallingPiece(
+                    currentPiece,
+                    CELL_SIZE
+            );
+
+            return;
+        }
+
+        if (currentPiece.getCol() > playerOneAiTargetCol &&
+                playerOne.canMoveLeft(currentPiece)) {
+
+            currentPiece.moveLeft();
+            AudioManager.playMoveTurnSound();
+
+            playerOne.drawFallingPiece(
+                    currentPiece,
+                    CELL_SIZE
+            );
+
+            return;
+        }
+
+        if (playerOne.canMoveDown(currentPiece)) {
+
+            currentPiece.resetYOffset();
+            currentPiece.moveDown();
+
+            playerOne.drawFallingPiece(
+                    currentPiece,
+                    CELL_SIZE
+            );
+
+        } else {
+            landPlayerOnePiece();
+        }
+    }
+
+
     // -------------------------------------------------------------
     // PLAYER TWO AI
     // -------------------------------------------------------------
@@ -1244,14 +1402,21 @@ public class PlayScreen {
                             playerTwoSequenceIndex + 1
                     );
 
+            TetrisServerConnection serverConnection =
+                    TetrisServerConnection.getInstance();
+
             move =
-                    TetrisServerConnection
-                            .getInstance()
-                            .getServerMove(
-                                    playerTwo.getBoard(),
-                                    currentPieceTwo,
-                                    nextPiece
-                            );
+                    serverConnection.getServerMove(
+                            playerTwo.getBoard(),
+                            currentPieceTwo,
+                            nextPiece
+                    );
+
+            if (!serverConnection.wasLastRequestSuccessful()) {
+                playerTwoAiMoving = false;
+                showExternalServerWarning();
+                return;
+            }
 
         } else {
 
@@ -1326,6 +1491,79 @@ public class PlayScreen {
     }
 
 
+    /*
+     * Applies one server-controlled action for Player Two using its
+     * independent board, target, and falling tetromino.
+     */
+    private static void performPlayerTwoExternalStep() {
+
+        if (playerTwoAiRotationsDone < playerTwoAiTargetRotation) {
+
+            if (playerTwo.canRotate(currentPieceTwo)) {
+
+                currentPieceTwo.setShape(
+                        currentPieceTwo.getRotatedShape()
+                );
+
+                playerTwoAiRotationsDone++;
+                AudioManager.playMoveTurnSound();
+
+                playerTwo.drawFallingPiece(
+                        currentPieceTwo,
+                        CELL_SIZE
+                );
+
+                return;
+            }
+
+            playerTwoAiRotationsDone =
+                    playerTwoAiTargetRotation;
+        }
+
+        if (currentPieceTwo.getCol() < playerTwoAiTargetCol &&
+                playerTwo.canMoveRight(currentPieceTwo)) {
+
+            currentPieceTwo.moveRight();
+            AudioManager.playMoveTurnSound();
+
+            playerTwo.drawFallingPiece(
+                    currentPieceTwo,
+                    CELL_SIZE
+            );
+
+            return;
+        }
+
+        if (currentPieceTwo.getCol() > playerTwoAiTargetCol &&
+                playerTwo.canMoveLeft(currentPieceTwo)) {
+
+            currentPieceTwo.moveLeft();
+            AudioManager.playMoveTurnSound();
+
+            playerTwo.drawFallingPiece(
+                    currentPieceTwo,
+                    CELL_SIZE
+            );
+
+            return;
+        }
+
+        if (playerTwo.canMoveDown(currentPieceTwo)) {
+
+            currentPieceTwo.resetYOffset();
+            currentPieceTwo.moveDown();
+
+            playerTwo.drawFallingPiece(
+                    currentPieceTwo,
+                    CELL_SIZE
+            );
+
+        } else {
+            landPlayerTwoPiece();
+        }
+    }
+
+
     // -------------------------------------------------------------
     // LANDING / NEXT PIECE
     // -------------------------------------------------------------
@@ -1359,6 +1597,7 @@ public class PlayScreen {
 
             currentPiece = nextPiece;
             playerOneAiMoving = false;
+            updateNextTetrominoLabels();
 
             playerOne.drawFallingPiece(
                     currentPiece,
@@ -1392,6 +1631,10 @@ public class PlayScreen {
 
         if (rowsRemoved > 0) {
             AudioManager.playEraseLineSound();
+            playerTwoScoreLogic.addLinesCleared(rowsRemoved);
+            playerTwoScoreLabel.setText("Score: " + playerTwoScoreLogic.getScore());
+            playerTwoLevelLabel.setText("Current Level: " + playerTwoScoreLogic.getLevel());
+            playerTwoLinesLabel.setText("Line Erased: " + playerTwoScoreLogic.getLinesErased());
         }
 
         playerTwoSequenceIndex++;
@@ -1405,6 +1648,7 @@ public class PlayScreen {
 
             currentPieceTwo = nextPiece;
             playerTwoAiMoving = false;
+            updateNextTetrominoLabels();
 
             playerTwo.drawFallingPiece(
                     currentPieceTwo,
@@ -1421,23 +1665,285 @@ public class PlayScreen {
     }
 
 
-    /*
-     * Creates a simple heading for each field in Extended Mode.
-     * Keeping the styling here avoids duplicating label setup.
-     */
-    private static Label createPlayerLabel(
-            String text
+    // -------------------------------------------------------------
+    // PLAY-SCREEN INFORMATION PANELS
+    // -------------------------------------------------------------
+
+    private static VBox createPlayerInfoPanel(
+            String heading,
+            PlayerType playerType,
+            int initialLevel,
+            boolean playerTwoPanel
     ) {
+        Label headingLabel = new Label(heading);
+        Label typeLabel = new Label("Player Type: " + formatPlayerType(playerType));
+        Label initialLevelLabel = new Label("Initial Level: " + initialLevel);
+        Label currentLevelLabel = new Label("Current Level: " + initialLevel);
+        Label erasedLabel = new Label("Line Erased: 0");
+        Label currentScoreLabel = new Label("Score: 0");
+        Label nextHeading = new Label("Next Tetromino:");
+        Label nextLabel = new Label("-");
 
-        Label label =
-                new Label(text);
+        // The letter label is retained internally as a fallback/reference.
+        nextLabel.setVisible(false);
+        nextLabel.setManaged(false);
 
-        label.setStyle(
-                "-fx-font-size: 16px;" +
-                        "-fx-font-weight: bold;"
+        Pane nextPreview = new Pane();
+        nextPreview.setMinSize(150, 95);
+        nextPreview.setPrefSize(150, 95);
+        nextPreview.setMaxSize(150, 95);
+        nextPreview.setStyle(
+                "-fx-background-color: #ffffff;" +
+                        "-fx-border-color: #c7ccd6;" +
+                        "-fx-border-width: 1.5px;"
         );
 
-        return label;
+        String normalStyle =
+                "-fx-font-size: 16px;" +
+                        "-fx-text-fill: #222222;";
+
+        headingLabel.setStyle(
+                "-fx-font-size: 18px;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-text-fill: #222222;"
+        );
+
+        typeLabel.setStyle(normalStyle);
+        initialLevelLabel.setStyle(normalStyle);
+        currentLevelLabel.setStyle(normalStyle);
+        erasedLabel.setStyle(normalStyle);
+
+        nextHeading.setStyle(
+                "-fx-font-size: 16px;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-text-fill: #222222;"
+        );
+
+        // Make the score the strongest item in the information panel.
+        currentScoreLabel.setStyle(
+                "-fx-font-size: 25px;" +
+                        "-fx-font-weight: 900;" +
+                        "-fx-text-fill: #222222;"
+        );
+
+        if (playerTwoPanel) {
+            playerTwoScoreLabel = currentScoreLabel;
+            playerTwoLevelLabel = currentLevelLabel;
+            playerTwoLinesLabel = erasedLabel;
+            playerTwoNextLabel = nextLabel;
+            playerTwoNextPreview = nextPreview;
+        } else {
+            scoreLabel = currentScoreLabel;
+            levelLabel = currentLevelLabel;
+            linesLabel = erasedLabel;
+            playerOneNextLabel = nextLabel;
+            playerOneNextPreview = nextPreview;
+        }
+
+        VBox panel = new VBox(
+                16,
+                headingLabel,
+                typeLabel,
+                initialLevelLabel,
+                currentLevelLabel,
+                erasedLabel,
+                currentScoreLabel,
+                nextHeading,
+                nextPreview,
+                nextLabel
+        );
+
+        panel.setAlignment(Pos.TOP_LEFT);
+        panel.setPadding(new Insets(18));
+        panel.setMinWidth(220);
+        panel.setPrefWidth(220);
+
+        // The outer player card now owns the blue border.
+        panel.setStyle(
+                "-fx-background-color: #f5f7fb;"
+        );
+
+        return panel;
+    }
+
+
+    /*
+     * Creates one complete player card so the blue outline surrounds
+     * both Game Info and the black gameplay board.
+     */
+    private static HBox createPlayerGameArea(
+            VBox infoPanel,
+            StackPane boardStack
+    ) {
+        HBox playerArea = new HBox(0, infoPanel, boardStack);
+        playerArea.setAlignment(Pos.CENTER);
+
+        playerArea.setStyle(
+                "-fx-border-color: #3a86ff;" +
+                        "-fx-border-width: 3px;" +
+                        "-fx-border-radius: 8px;" +
+                        "-fx-background-radius: 8px;"
+        );
+
+        return playerArea;
+    }
+
+
+    private static String formatPlayerType(PlayerType playerType) {
+        return switch (playerType) {
+            case HUMAN -> "Human";
+            case AI -> "AI";
+            case EXTERNAL -> "External";
+        };
+    }
+
+
+    private static void updateAudioStatusLabels() {
+        GameConfig config = GameSettings.getConfig();
+
+        if (musicStatusLabel != null) {
+            musicStatusLabel.setText(
+                    "Music: " + (config.isMusicEnabled() ? "ON" : "OFF")
+            );
+        }
+
+        if (soundStatusLabel != null) {
+            soundStatusLabel.setText(
+                    "Sound: " + (config.isSoundEnabled() ? "ON" : "OFF")
+            );
+        }
+    }
+
+
+    private static void updateNextTetrominoLabels() {
+        if (playerOneNextLabel != null) {
+            TetrominoType nextType =
+                    getSharedSequenceType(playerOneSequenceIndex + 1);
+
+            playerOneNextLabel.setText(formatTetrominoType(nextType));
+            drawNextTetrominoPreview(playerOneNextPreview, nextType);
+        }
+
+        if (playerTwo != null && playerTwoNextLabel != null) {
+            TetrominoType nextType =
+                    getSharedSequenceType(playerTwoSequenceIndex + 1);
+
+            playerTwoNextLabel.setText(formatTetrominoType(nextType));
+            drawNextTetrominoPreview(playerTwoNextPreview, nextType);
+        }
+    }
+
+
+    /*
+     * Draw the actual upcoming tetromino in a small preview box.
+     * The same factory, shape and colour used by gameplay are reused here.
+     */
+    private static void drawNextTetrominoPreview(
+            Pane previewPane,
+            TetrominoType type
+    ) {
+        if (previewPane == null || type == null) {
+            return;
+        }
+
+        previewPane.getChildren().clear();
+
+        Tetromino previewPiece =
+                tetrominoFactory.createPiece(type, COLS);
+
+        int[][] shape = previewPiece.getShape();
+        int previewCellSize = 24;
+
+        int minRow = shape.length;
+        int maxRow = -1;
+        int minCol = Integer.MAX_VALUE;
+        int maxCol = -1;
+
+        for (int row = 0; row < shape.length; row++) {
+            for (int col = 0; col < shape[row].length; col++) {
+                if (shape[row][col] != 0) {
+                    minRow = Math.min(minRow, row);
+                    maxRow = Math.max(maxRow, row);
+                    minCol = Math.min(minCol, col);
+                    maxCol = Math.max(maxCol, col);
+                }
+            }
+        }
+
+        if (maxRow < 0 || maxCol < 0) {
+            return;
+        }
+
+        int shapeWidth =
+                (maxCol - minCol + 1) * previewCellSize;
+
+        int shapeHeight =
+                (maxRow - minRow + 1) * previewCellSize;
+
+        double startX =
+                (previewPane.getPrefWidth() - shapeWidth) / 2.0;
+
+        double startY =
+                (previewPane.getPrefHeight() - shapeHeight) / 2.0;
+
+        for (int row = minRow; row <= maxRow; row++) {
+            for (int col = minCol; col <= maxCol; col++) {
+
+                if (shape[row][col] == 0) {
+                    continue;
+                }
+
+                Region cell = new Region();
+                cell.setPrefSize(previewCellSize, previewCellSize);
+                cell.setMinSize(previewCellSize, previewCellSize);
+                cell.setMaxSize(previewCellSize, previewCellSize);
+
+                cell.setBackground(
+                        new Background(
+                                new BackgroundFill(
+                                        previewPiece.getColor(),
+                                        CornerRadii.EMPTY,
+                                        Insets.EMPTY
+                                )
+                        )
+                );
+
+                cell.setBorder(
+                        new Border(
+                                new BorderStroke(
+                                        Color.rgb(255, 255, 255, 0.35),
+                                        BorderStrokeStyle.SOLID,
+                                        CornerRadii.EMPTY,
+                                        new BorderWidths(0.5)
+                                )
+                        )
+                );
+
+                cell.setLayoutX(
+                        startX + (col - minCol) * previewCellSize
+                );
+
+                cell.setLayoutY(
+                        startY + (row - minRow) * previewCellSize
+                );
+
+                previewPane.getChildren().add(cell);
+            }
+        }
+    }
+
+
+    private static TetrominoType getSharedSequenceType(int sequenceIndex) {
+        while (sharedSequence.size() <= sequenceIndex) {
+            sharedSequence.add(tetrominoFactory.createRandomType());
+        }
+
+        return sharedSequence.get(sequenceIndex);
+    }
+
+
+    private static String formatTetrominoType(TetrominoType type) {
+        return type == null ? "-" : type.name();
     }
 
 
@@ -1501,6 +2007,31 @@ public class PlayScreen {
 
 
     // -------------------------------------------------------------
+    // EXTERNAL SERVER WARNING
+    // -------------------------------------------------------------
+
+    private static void showExternalServerWarning() {
+
+        if (externalServerWarningShown) {
+            return;
+        }
+
+        externalServerWarningShown = true;
+
+        Alert warning =
+                new Alert(Alert.AlertType.INFORMATION);
+
+        warning.setTitle("External Player");
+        warning.setHeaderText(null);
+        warning.setContentText(
+                "You need to start TetrisServer to use external player mode."
+        );
+
+        warning.show();
+    }
+
+
+    // -------------------------------------------------------------
     // HIGH SCORE ENTRY
     // -------------------------------------------------------------
     private static void checkAndSaveHighScore(Stage stage) {
@@ -1549,3 +2080,4 @@ public class PlayScreen {
     }
 
 }
+
