@@ -1,5 +1,6 @@
 package org.example;
 
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
@@ -148,12 +149,22 @@ public class PlayScreen {
     private static Pane playerTwoNextPreview;
     private static ScoreLogic playerTwoScoreLogic;
 
+    // Stage reference used for automatic per-player high-score dialogs.
+    private static Stage gameStage;
+
+    // Prevent a player's high-score dialog from being shown more than once.
+    private static boolean playerOneHighScoreHandled;
+    private static boolean playerTwoHighScoreHandled;
+
     public static void show(Stage stage) {
 
         // Reset state whenever a new game starts.
         paused = false;
         gameOver = false;
         externalServerWarningShown = false;
+        gameStage = stage;
+        playerOneHighScoreHandled = false;
+        playerTwoHighScoreHandled = false;
 
         // Start Player One's score from the configured game level.
         scoreLogic = new ScoreLogic(
@@ -1101,7 +1112,9 @@ public class PlayScreen {
                 preparePlayerOneAutomatedMove();
             }
 
-            if (now - playerOneLastAiStepTime >= AI_STEP_DELAY_NANOS) {
+            if (playerOneAiMoving &&
+                    now - playerOneLastAiStepTime >= AI_STEP_DELAY_NANOS) {
+
                 playerOneLastAiStepTime = now;
                 performPlayerOneAiStep();
             }
@@ -1170,7 +1183,9 @@ public class PlayScreen {
                 preparePlayerTwoAutomatedMove();
             }
 
-            if (now - playerTwoLastAiStepTime >= AI_STEP_DELAY_NANOS) {
+            if (playerTwoAiMoving &&
+                    now - playerTwoLastAiStepTime >= AI_STEP_DELAY_NANOS) {
+
                 playerTwoLastAiStepTime = now;
                 performPlayerTwoAiStep();
             }
@@ -1606,17 +1621,32 @@ public class PlayScreen {
 
         } else {
 
+            // Only Player One is finished here. Do NOT stop the shared timer
+            // while Player Two is still alive in Extended Mode.
             playerOne.setGameOver(true);
-            gameOver = true;
-            paused = false;
+            playerOne.clearFallingPiece();
+            playerOneAiMoving = false;
+            currentPiece = null;
 
             AudioManager.playGameFinishSound();
-
-            if (timer != null) {
-                timer.stop();
-            }
-
             System.out.println("PLAYER ONE GAME OVER");
+
+            final PlayerType finishedPlayerType = playerOne.getPlayerType();
+
+            /*
+             * Dialog.showAndWait() cannot be called directly from inside
+             * AnimationTimer.handle(). Defer the high-score dialog until the
+             * current animation pulse has finished.
+             */
+            Platform.runLater(() ->
+                    checkAndSavePlayerHighScore(
+                            1,
+                            scoreLogic,
+                            finishedPlayerType
+                    )
+            );
+
+            finishWholeGameIfRequired();
         }
     }
 
@@ -1657,10 +1687,63 @@ public class PlayScreen {
 
         } else {
 
+            // Only Player Two is finished here. Player One keeps updating
+            // until it also reaches game over.
             playerTwo.setGameOver(true);
             playerTwo.clearFallingPiece();
+            playerTwoAiMoving = false;
+            currentPieceTwo = null;
 
+            AudioManager.playGameFinishSound();
             System.out.println("PLAYER TWO GAME OVER");
+
+            final PlayerType finishedPlayerType = playerTwo.getPlayerType();
+
+            /*
+             * Defer the modal high-score dialog for the same reason as
+             * Player One: showAndWait() is illegal during AnimationTimer
+             * processing.
+             */
+            Platform.runLater(() ->
+                    checkAndSavePlayerHighScore(
+                            2,
+                            playerTwoScoreLogic,
+                            finishedPlayerType
+                    )
+            );
+
+            finishWholeGameIfRequired();
+        }
+    }
+
+
+    /*
+     * The AnimationTimer is shared by both fields. It must only be stopped
+     * when the whole match is finished, never when just one player finishes.
+     */
+    private static void finishWholeGameIfRequired() {
+
+        GameConfig config = GameSettings.getConfig();
+
+        boolean wholeGameFinished;
+
+        if (!config.isExtendedMode()) {
+            wholeGameFinished = playerOne != null && playerOne.isGameOver();
+        } else {
+            wholeGameFinished =
+                    playerOne != null &&
+                            playerTwo != null &&
+                            playerOne.isGameOver() &&
+                            playerTwo.isGameOver();
+        }
+
+        if (wholeGameFinished) {
+            gameOver = true;
+            paused = false;
+
+            if (timer != null) {
+                timer.stop();
+            }
         }
     }
 
@@ -2034,50 +2117,139 @@ public class PlayScreen {
     // -------------------------------------------------------------
     // HIGH SCORE ENTRY
     // -------------------------------------------------------------
-    private static void checkAndSaveHighScore(Stage stage) {
+
+    /*
+     * Called immediately when an individual player reaches game over.
+     * In Extended Mode this does not end the other player's game.
+     */
+    private static void checkAndSavePlayerHighScore(
+            int playerNumber,
+            ScoreLogic playerScoreLogic,
+            PlayerType playerType
+    ) {
+
+        if (playerScoreLogic == null) {
+            return;
+        }
+
+        if (playerNumber == 1) {
+            if (playerOneHighScoreHandled) {
+                return;
+            }
+            playerOneHighScoreHandled = true;
+        } else {
+            if (playerTwoHighScoreHandled) {
+                return;
+            }
+            playerTwoHighScoreHandled = true;
+        }
 
         List<ScoreEntry> scores = HighScoreManager.load();
-        int finalScore = scoreLogic.getScore();
 
-        boolean qualifies = scores.size() < 10 ||
-                finalScore > scores.get(scores.size() - 1).score();
+        // Always sort before checking the tenth-place score.
+        scores.sort((a, b) -> Integer.compare(b.score(), a.score()));
 
-        if (qualifies) {
-            TextInputDialog nameDialog = new TextInputDialog();
-            nameDialog.setTitle("High Score");
-            nameDialog.setHeaderText(null);
-            nameDialog.setContentText(
-                    "Player 1's score is in the top scores, please enter player 1's name:"
+        int finalScore = playerScoreLogic.getScore();
+
+        boolean qualifies =
+                scores.size() < 10 ||
+                        finalScore > scores.get(scores.size() - 1).score();
+
+        if (!qualifies) {
+            return;
+        }
+
+        TextInputDialog nameDialog = new TextInputDialog();
+
+        if (gameStage != null) {
+            nameDialog.initOwner(gameStage);
+        }
+
+        nameDialog.setTitle("High Score");
+        nameDialog.setHeaderText(null);
+        nameDialog.setContentText(
+                "Player " + playerNumber +
+                        "'s score is in the top scores, please enter Player " +
+                        playerNumber + "'s name:"
+        );
+
+        Optional<String> result = nameDialog.showAndWait();
+
+        String playerName =
+                result.isPresent() && !result.get().isBlank()
+                        ? result.get().trim()
+                        : "Player " + playerNumber;
+
+        GameConfig config = GameSettings.getConfig();
+
+        String modeDescription =
+                config.isExtendedMode()
+                        ? "Extended"
+                        : "Single";
+
+        String configDescription =
+                COLS + "x" + ROWS +
+                        "(" + config.getGameLevel() + ") " +
+                        playerType + " " +
+                        modeDescription;
+
+        scores.add(
+                new ScoreEntry(
+                        playerName,
+                        finalScore,
+                        configDescription
+                )
+        );
+
+        scores.sort(
+                (a, b) -> Integer.compare(
+                        b.score(),
+                        a.score()
+                )
+        );
+
+        if (scores.size() > 10) {
+            scores =
+                    new ArrayList<>(
+                            scores.subList(0, 10)
+                    );
+        }
+
+        HighScoreManager.save(scores);
+    }
+
+
+    /*
+     * Retained for the Back-button path after a completed game.
+     * Scores are already handled automatically at each player's game over,
+     * so this method only handles any exceptional unhandled score and then
+     * returns to the Main Menu.
+     */
+    private static void checkAndSaveHighScore(Stage stage) {
+
+        if (playerOne != null &&
+                playerOne.isGameOver() &&
+                !playerOneHighScoreHandled) {
+
+            checkAndSavePlayerHighScore(
+                    1,
+                    scoreLogic,
+                    playerOne.getPlayerType()
             );
+        }
 
-            Optional<String> result = nameDialog.showAndWait();
-            String playerName = result.isPresent() && !result.get().isBlank()
-                    ? result.get()
-                    : "Player";
+        if (playerTwo != null &&
+                playerTwo.isGameOver() &&
+                !playerTwoHighScoreHandled) {
 
-            GameConfig config = GameSettings.getConfig();
-            String modeDescription = config.isExtendedMode()
-                    ? "Extended"
-                    : "Single";
-
-            String configDescription =
-                    COLS + "x" + ROWS +
-                            "(" + config.getGameLevel() + ") " +
-                            config.getPlayerOneType() + " " +
-                            modeDescription;
-
-            scores.add(new ScoreEntry(playerName, finalScore, configDescription));
-            scores.sort((a, b) -> Integer.compare(b.score(), a.score()));
-
-            if (scores.size() > 10) {
-                scores = new ArrayList<>(scores.subList(0, 10));
-            }
-
-            HighScoreManager.save(scores);
+            checkAndSavePlayerHighScore(
+                    2,
+                    playerTwoScoreLogic,
+                    playerTwo.getPlayerType()
+            );
         }
 
         MainMenu.show(stage);
     }
 
 }
-

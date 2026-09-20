@@ -16,10 +16,12 @@ public class TetrisServerConnection {
     private static final int SERVER_PORT = 3000;
 
     /*
-     * Prevent a missing server from holding up the JavaFX game thread
-     * for a long time while a connection attempt is made.
+     * Both connection and response reads need a timeout. Without a read
+     * timeout, in.readLine() can block the JavaFX AnimationTimer indefinitely
+     * if TetrisServer accepts the socket but stops responding.
      */
     private static final int CONNECTION_TIMEOUT_MS = 500;
+    private static final int READ_TIMEOUT_MS = 500;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -60,11 +62,6 @@ public class TetrisServerConnection {
             Tetromino nextPiece
     ) {
 
-        /*
-         * Assume failure until a complete request/response cycle succeeds.
-         * PlayScreen can inspect this state and decide whether to use the
-         * returned move or fall back to ordinary slow falling.
-         */
         lastRequestSuccessful = false;
 
         int[][] cells = convertBoardToInts(board);
@@ -79,16 +76,19 @@ public class TetrisServerConnection {
                 nextShape
         );
 
-        /*
-         * TetrisServer accepts one JSON game-state request on localhost:3000
-         * and returns one OpMove containing the target X and rotation.
-         */
         try (Socket socket = new Socket()) {
 
             socket.connect(
                     new InetSocketAddress(SERVER_HOST, SERVER_PORT),
                     CONNECTION_TIMEOUT_MS
             );
+
+            /*
+             * Critical: connect(timeout) protects only the connection phase.
+             * setSoTimeout protects the later blocking read from hanging the
+             * JavaFX game loop forever.
+             */
+            socket.setSoTimeout(READ_TIMEOUT_MS);
 
             try (PrintWriter out =
                          new PrintWriter(
@@ -135,9 +135,9 @@ public class TetrisServerConnection {
             );
 
             /*
-             * This fallback is deliberately harmless. PlayScreen checks
-             * wasLastRequestSuccessful() before treating it as a genuine
-             * External-player target.
+             * Harmless fallback. PlayScreen checks
+             * wasLastRequestSuccessful() and lets the piece continue with
+             * ordinary falling instead of treating this as a server target.
              */
             return new int[]{
                     currentPiece.getCol(),
