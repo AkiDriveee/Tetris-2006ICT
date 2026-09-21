@@ -1,6 +1,8 @@
 package org.example;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.core.type.TypeReference;
 
 import java.io.File;
@@ -26,17 +28,34 @@ public final class HighScoreManager {
 
         try {
 
+            /*
+             * Read the high-score file using the same structure
+             * demonstrated by the tutor:
+             *
+             * {
+             *   "scores": [...]
+             * }
+             */
+            JsonNode root = OBJECT_MAPPER.readTree(file);
+            JsonNode scoresNode = root.get("scores");
+
+            if (scoresNode == null || !scoresNode.isArray()) {
+                return new ArrayList<>();
+            }
+
             List<ScoreEntry> scores =
-                    OBJECT_MAPPER.readValue(
-                            file,
-                            new TypeReference<List<ScoreEntry>>() {}
+                    OBJECT_MAPPER.convertValue(
+                            scoresNode,
+                            new TypeReference<List<ScoreEntry>>() {
+                            }
                     );
 
             /*
              * Java Stream:
              * Remove any invalid null entries loaded from the JSON file.
-             * The result is returned as a new mutable ArrayList because
-             * the high-score screen later sorts and updates this list.
+             *
+             * A mutable ArrayList is returned because the high-score
+             * functionality later sorts and updates this list.
              */
             return scores.stream()
                     .filter(score -> score != null)
@@ -46,7 +65,7 @@ public final class HighScoreManager {
                             ArrayList::addAll
                     );
 
-        } catch (IOException e) {
+        } catch (IOException | IllegalArgumentException e) {
 
             System.out.println(
                     "Could not load high scores: " +
@@ -61,14 +80,29 @@ public final class HighScoreManager {
 
         try {
 
+            /*
+             * Store the scores inside a JSON object so the file has
+             * the following structure:
+             *
+             * {
+             *   "scores": [...]
+             * }
+             */
+            ObjectNode root = OBJECT_MAPPER.createObjectNode();
+
+            root.set(
+                    "scores",
+                    OBJECT_MAPPER.valueToTree(scores)
+            );
+
             OBJECT_MAPPER
                     .writerWithDefaultPrettyPrinter()
                     .writeValue(
                             new File(SCORES_FILE),
-                            scores
+                            root
                     );
 
-        } catch (IOException e) {
+        } catch (IOException | IllegalArgumentException e) {
 
             System.out.println(
                     "Could not save high scores: " +
@@ -78,6 +112,7 @@ public final class HighScoreManager {
     }
 
     public static void clear() {
+
         save(new ArrayList<>());
     }
 }
