@@ -977,10 +977,10 @@ public class PlayScreen {
 
                         // ---------------------------------------------
                         // PLAYER TWO HUMAN CONTROLS
-                        // L = LEFT, R = RIGHT, D = DOWN, W = ROTATE
+                        // Z = LEFT, X = RIGHT, C = DOWN, V = ROTATE
                         // ---------------------------------------------
 
-                        case L -> {
+                        case Z -> {
 
                             if (!paused &&
                                     !gameOver &&
@@ -1006,7 +1006,7 @@ public class PlayScreen {
                             event.consume();
                         }
 
-                        case R -> {
+                        case X -> {
 
                             if (!paused &&
                                     !gameOver &&
@@ -1032,10 +1032,10 @@ public class PlayScreen {
                             event.consume();
                         }
 
-                        case D -> {
+                        case C -> {
 
                             /*
-                             * D moves Player Two down faster while S remains
+                             * C moves Player Two down faster while S remains
                              * reserved for the in-game sound-effects toggle.
                              */
                             if (!paused &&
@@ -1065,7 +1065,7 @@ public class PlayScreen {
                             event.consume();
                         }
 
-                        case W -> {
+                        case V -> {
 
                             if (!paused &&
                                     !gameOver &&
