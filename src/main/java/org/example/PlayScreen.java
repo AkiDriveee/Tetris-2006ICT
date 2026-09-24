@@ -704,9 +704,11 @@ public class PlayScreen {
                 displayedAreaHeight
         );
 
+// Allow the center container to use the available window space.
+// boardsArea itself remains centred inside it.
         boardContainer.setMaxSize(
-                displayedBoardsWidth,
-                displayedAreaHeight
+                Double.MAX_VALUE,
+                Double.MAX_VALUE
         );
 
         /*
@@ -732,7 +734,7 @@ public class PlayScreen {
                 Math.min(
                         screenBounds.getHeight() - 40,
                         Math.max(
-                                600,
+                                500,
                                 displayedAreaHeight + 210
                         )
                 );
@@ -834,9 +836,9 @@ public class PlayScreen {
                             event.consume();
                         }
 
-// ---------------------------------------------
-// S = TOGGLE SOUND EFFECTS
-// ---------------------------------------------
+                        // ---------------------------------------------
+                        // S = TOGGLE SOUND EFFECTS
+                        // ---------------------------------------------
 
                         case S -> {
 
