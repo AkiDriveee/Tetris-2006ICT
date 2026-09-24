@@ -42,7 +42,9 @@ public class PlayScreen {
     private static int ROWS;
     private static int COLS;
 
-    private static final int CELL_SIZE = 29;
+    private static final int MAX_CELL_SIZE = 29;
+    private static final int MIN_CELL_SIZE = 8;
+    private static int CELL_SIZE = MAX_CELL_SIZE;
 
     /*
      * Temporary board reference retained for the existing AI
@@ -219,6 +221,47 @@ public class PlayScreen {
          */
         boolean extendedMode =
                 config.isExtendedMode();
+
+        /*
+         * Choose the cell size before the boards are created. This keeps the
+         * board, falling-piece layer and JavaFX layout at the same real size,
+         * instead of visually scaling only the black board after layout.
+         *
+         * Small fields keep the normal 29 px cells. Larger fields (up to the
+         * configured 15 x 30 range) automatically use smaller cells so the
+         * complete player card remains inside the usable screen area.
+         */
+        Rectangle2D screenBounds =
+                Screen.getPrimary().getVisualBounds();
+
+        double infoPanelWidthForSizing = 220;
+        double boardGapForSizing = extendedMode ? 24 : 0;
+        int playerCountForSizing = extendedMode ? 2 : 1;
+
+        double availableBoardHeightForSizing =
+                screenBounds.getHeight() - 210;
+
+        double availableBoardsWidthForSizing =
+                screenBounds.getWidth() - 120
+                        - (infoPanelWidthForSizing * playerCountForSizing)
+                        - boardGapForSizing;
+
+        int cellSizeFromHeight =
+                (int) Math.floor(availableBoardHeightForSizing / ROWS);
+
+        int cellSizeFromWidth =
+                (int) Math.floor(
+                        availableBoardsWidthForSizing
+                                / (COLS * playerCountForSizing)
+                );
+
+        CELL_SIZE = Math.max(
+                MIN_CELL_SIZE,
+                Math.min(
+                        MAX_CELL_SIZE,
+                        Math.min(cellSizeFromHeight, cellSizeFromWidth)
+                )
+        );
 
         playerTwo =
                 extendedMode
@@ -601,98 +644,57 @@ public class PlayScreen {
         root.setBottom(bottom);
 
         // ---------------------------------------------------------
-// DYNAMIC GAME WINDOW
-// ---------------------------------------------------------
+        // DYNAMIC GAME WINDOW
+        // ---------------------------------------------------------
 
         /*
-         * Get the usable screen dimensions so the gameplay window
-         * does not extend beyond the user's visible screen area.
+         * CELL_SIZE was calculated before createGameField(), so no ScaleX /
+         * ScaleY transforms are needed here. The black board therefore keeps
+         * exactly the same layout dimensions as its cells and overlay, and it
+         * stays flush with the blue player-card border at every field size.
          */
-        Rectangle2D screenBounds =
-                Screen.getPrimary().getVisualBounds();
-
         double boardWidth =
                 COLS * CELL_SIZE;
 
         double boardHeight =
                 ROWS * CELL_SIZE;
 
-        /*
-         * Extended Mode must fit two fields horizontally as well as
-         * vertically. Use one common scale so both players' fields remain
-         * the same visible size and the Back button remains on screen.
-         */
         double boardGap =
                 extendedMode ? 24 : 0;
 
         double infoPanelWidth = 220;
 
-        double unscaledBoardsWidth =
-                extendedMode
-                        ? ((boardWidth + infoPanelWidth) * 2) + boardGap
-                        : boardWidth + infoPanelWidth;
-
-        double availableBoardHeight =
-                screenBounds.getHeight() - 210;
-
-        double availableBoardWidth =
-                screenBounds.getWidth() - 120;
-
-        double heightScale =
-                availableBoardHeight / boardHeight;
-
-        double widthScale =
-                availableBoardWidth / unscaledBoardsWidth;
-
-        double boardScale =
-                Math.min(
-                        1.0,
-                        Math.min(
-                                heightScale,
-                                widthScale
-                        )
-                );
-
-        boardStack.setScaleX(boardScale);
-        boardStack.setScaleY(boardScale);
-
-        if (boardStackTwo != null) {
-            boardStackTwo.setScaleX(boardScale);
-            boardStackTwo.setScaleY(boardScale);
-        }
-
-        double displayedBoardWidth =
-                boardWidth * boardScale;
-
-        double displayedBoardHeight =
-                boardHeight * boardScale;
-
-        /*
-         * Scaling changes visual bounds but not JavaFX layout bounds.
-         * Give each labelled player area the visible dimensions so the
-         * two-board HBox does not reserve the original unscaled sizes.
-         */
-        playerOneArea.setMinWidth(displayedBoardWidth + infoPanelWidth);
-        playerOneArea.setPrefWidth(displayedBoardWidth + infoPanelWidth);
-        playerOneArea.setMaxWidth(displayedBoardWidth + infoPanelWidth);
-
-        if (extendedMode && playerTwoArea != null) {
-            playerTwoArea.setMinWidth(displayedBoardWidth + infoPanelWidth);
-            playerTwoArea.setPrefWidth(displayedBoardWidth + infoPanelWidth);
-            playerTwoArea.setMaxWidth(displayedBoardWidth + infoPanelWidth);
-        }
+        double playerAreaWidth =
+                boardWidth + infoPanelWidth;
 
         double displayedBoardsWidth =
                 extendedMode
-                        ? ((displayedBoardWidth + infoPanelWidth) * 2) + boardGap
-                        : displayedBoardWidth + infoPanelWidth;
+                        ? (playerAreaWidth * 2) + boardGap
+                        : playerAreaWidth;
 
-        /*
-         * Player One / Player Two are already identified inside each
-         * Game Info panel, so no separate heading height is required.
-         */
         double displayedAreaHeight =
-                displayedBoardHeight;
+                boardHeight;
+
+        // Keep the information panel and black board exactly the same height.
+        playerOneInfo.setMinHeight(boardHeight);
+        playerOneInfo.setPrefHeight(boardHeight);
+        playerOneInfo.setMaxHeight(boardHeight);
+
+        playerOneArea.setMinSize(playerAreaWidth, boardHeight);
+        playerOneArea.setPrefSize(playerAreaWidth, boardHeight);
+        playerOneArea.setMaxSize(playerAreaWidth, boardHeight);
+
+        if (extendedMode && playerTwoArea != null) {
+            VBox playerTwoInfoPanel = (VBox) playerTwoArea.getChildren().get(0);
+
+            playerTwoInfoPanel.setMinHeight(boardHeight);
+            playerTwoInfoPanel.setPrefHeight(boardHeight);
+            playerTwoInfoPanel.setMaxHeight(boardHeight);
+
+            playerTwoArea.setMinSize(playerAreaWidth, boardHeight);
+            playerTwoArea.setPrefSize(playerAreaWidth, boardHeight);
+            playerTwoArea.setMaxSize(playerAreaWidth, boardHeight);
+        }
 
         boardContainer.setMinSize(
                 displayedBoardsWidth,
@@ -704,18 +706,11 @@ public class PlayScreen {
                 displayedAreaHeight
         );
 
-// Allow the center container to use the available window space.
-// boardsArea itself remains centred inside it.
         boardContainer.setMaxSize(
-                Double.MAX_VALUE,
-                Double.MAX_VALUE
+                displayedBoardsWidth,
+                displayedAreaHeight
         );
 
-        /*
-         * Automatically size the gameplay window according to
-         * the configured field dimensions while keeping it within
-         * the usable screen area.
-         */
         double windowWidth =
                 Math.min(
                         screenBounds.getWidth() - 80,
@@ -725,16 +720,11 @@ public class PlayScreen {
                         )
                 );
 
-        /*
-         * Reserve vertical room for the Play/Music/Sound header and the
-         * bottom Back button. The previous +120 allowance was too small,
-         * so the Back button could be pushed below the visible window.
-         */
         double windowHeight =
                 Math.min(
                         screenBounds.getHeight() - 40,
                         Math.max(
-                                500,
+                                600,
                                 displayedAreaHeight + 210
                         )
                 );
@@ -751,13 +741,8 @@ public class PlayScreen {
         );
 
         stage.setScene(scene);
-
-        /*
-         * Keep the explicitly calculated scene dimensions and centre the
-         * gameplay window. Calling sizeToScene() here would allow the
-         * unscaled board layout bounds to enlarge the stage again.
-         */
         stage.centerOnScreen();
+
         // ---------------------------------------------------------
         // KEYBOARD CONTROLS
         // ---------------------------------------------------------
@@ -836,9 +821,9 @@ public class PlayScreen {
                             event.consume();
                         }
 
-                        // ---------------------------------------------
-                        // S = TOGGLE SOUND EFFECTS
-                        // ---------------------------------------------
+// ---------------------------------------------
+// S = TOGGLE SOUND EFFECTS
+// ---------------------------------------------
 
                         case S -> {
 
@@ -1900,14 +1885,33 @@ public class PlayScreen {
             VBox infoPanel,
             StackPane boardStack
     ) {
-        HBox playerArea = new HBox(0, infoPanel, boardStack);
-        playerArea.setAlignment(Pos.CENTER);
 
+        HBox playerArea = new HBox();
+
+        playerArea.setAlignment(Pos.TOP_LEFT);
+        playerArea.setSpacing(0);
+
+        playerArea.getChildren().addAll(
+                infoPanel,
+                boardStack
+        );
+
+        // Make the HBox exactly the size of its contents.
+        playerArea.setMinSize(
+                Region.USE_PREF_SIZE,
+                Region.USE_PREF_SIZE
+        );
+
+        playerArea.setMaxSize(
+                Region.USE_PREF_SIZE,
+                Region.USE_PREF_SIZE
+        );
+
+        // Blue border on all four sides.
         playerArea.setStyle(
                 "-fx-border-color: #3a86ff;" +
                         "-fx-border-width: 3px;" +
-                        "-fx-border-radius: 8px;" +
-                        "-fx-background-radius: 8px;"
+                        "-fx-border-radius: 6px;"
         );
 
         return playerArea;
@@ -2295,3 +2299,4 @@ public class PlayScreen {
     }
 
 }
+
